@@ -1,0 +1,5 @@
+﻿Analyzing mobile_ai_ide...                                      
+
+warning - The value of the local variable 'dir' isn't used - lib\infrastructure\services\process_bridge.dart:28:15 - unused_local_variable
+  error - The argument type 'List<int>' can't be assigned to the parameter type 'Uint8List'.  - lib\infrastructure\services\process_bridge.dart:61:17 - argument_type_not_assignable
+
