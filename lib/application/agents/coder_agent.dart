@@ -1,8 +1,10 @@
 import '../../domain/interfaces/agent.dart';
 import '../../domain/models/agent_event.dart';
+import '../../domain/models/agent_step.dart';
 import '../agent_bus.dart';
 import '../../domain/interfaces/ai_provider.dart';
 import '../../domain/models/chat_message.dart';
+import '../../infrastructure/agent/agent_service.dart';
 
 class CoderAgent extends Agent {
   final AgentBus bus;
@@ -27,30 +29,48 @@ class CoderAgent extends Agent {
       sourceAgent: name,
       targetAgent: 'System',
       type: AgentEventType.message,
-      payload: 'CoderAgent is writing code based on plan...',
+      payload: 'CoderAgent is executing the plan...',
     ));
 
     try {
       final payload = event.payload as Map<String, dynamic>;
       final originalTask = payload['originalTask'];
       final plan = payload['plan'];
+      final scaffoldLog = payload['scaffoldLog'] ?? '';
 
       final prompt = '''
-You are an expert Flutter Developer. Follow this plan to accomplish the user's task.
+You are the Coder Agent in a multi-agent system.
+Your job is to write code, modify files, and run terminal commands to fulfill the implementation plan.
+Use `edit_file` to modify existing files.
+Use `run_terminal_command` to test or build.
+Wait for tool results and iteratively build the solution.
+
 Original Task: $originalTask
 Plan: $plan
-
-Write the code necessary to complete this task.
+Context from Scaffolder: $scaffoldLog
 ''';
 
       final history = [ChatMessage(role: MessageRole.user, content: prompt)];
-      final code = await aiProvider.generate(history);
+      final agentService = AgentService(provider: aiProvider, mode: 'Code');
+      
+      String codeLog = '';
+      
+      await for (final step in agentService.run(history)) {
+         if (step.type == AgentStepType.toolCall) {
+            bus.publish(AgentEvent(sourceAgent: name, targetAgent: 'User', type: AgentEventType.message, payload: 'Tool Call: ${step.content}'));
+         } else if (step.type == AgentStepType.toolResult) {
+            bus.publish(AgentEvent(sourceAgent: name, targetAgent: 'User', type: AgentEventType.message, payload: 'Tool Result: \\n${step.content}'));
+         } else if (step.type == AgentStepType.text || step.type == AgentStepType.finalAnswer) {
+            codeLog += step.content;
+            bus.publish(AgentEvent(sourceAgent: name, targetAgent: 'User', type: AgentEventType.message, payload: step.content));
+         }
+      }
 
       bus.publish(AgentEvent(
         sourceAgent: name,
         targetAgent: 'User',
         type: AgentEventType.message,
-        payload: 'Task Implementation:\\n$code',
+        payload: 'The Coder Agent has completed the implementation phase.',
       ));
 
       // Hand off code to ReviewerAgent
@@ -58,7 +78,7 @@ Write the code necessary to complete this task.
         sourceAgent: name,
         targetAgent: 'ReviewerAgent',
         type: AgentEventType.taskAssigned,
-        payload: {'originalTask': originalTask, 'code': code},
+        payload: {'originalTask': originalTask, 'codeLog': codeLog},
       ));
 
       bus.publish(AgentEvent(

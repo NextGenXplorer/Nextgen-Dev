@@ -6,11 +6,13 @@ class ImplementationPlanBubble extends StatelessWidget {
   const ImplementationPlanBubble({
     super.key,
     required this.content,
-    required this.onDevelop,
+    required this.onProceed,
+    required this.onEdit,
   });
 
   final String content;
-  final VoidCallback onDevelop;
+  final VoidCallback onProceed;
+  final VoidCallback onEdit;
 
   List<Map<String, dynamic>> _parseTasks() {
     final List<Map<String, dynamic>> tasks = [];
@@ -57,14 +59,28 @@ class ImplementationPlanBubble extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: AppThemes.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppThemes.accentBlue.withAlpha(80), width: 1.5),
+        color: AppThemes.surfaceDark,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppThemes.accentBlue.withAlpha(50), width: 1.5),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppThemes.surfaceCard,
+            AppThemes.surfaceDark,
+          ],
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppThemes.accentBlue.withAlpha(15),
-            blurRadius: 20,
-            spreadRadius: 2,
+            color: Colors.black.withAlpha(40),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: AppThemes.accentBlue.withAlpha(20),
+            blurRadius: 25,
+            spreadRadius: 1,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -143,24 +159,45 @@ class ImplementationPlanBubble extends StatelessWidget {
             )),
           ],
           const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ElevatedButton.icon(
-              onPressed: onDevelop,
-              icon: const Icon(Icons.build_circle_outlined, color: Colors.white),
-              label: const Text(
-                'Develop',
-                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppThemes.accentBlue,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_note, color: AppThemes.accentBlue),
+                  label: const Text(
+                    'Edit',
+                    style: TextStyle(color: AppThemes.accentBlue, fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: BorderSide(color: AppThemes.accentBlue.withAlpha(100)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
-                elevation: 0,
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: onProceed,
+                  icon: const Icon(Icons.rocket_launch, color: Colors.white),
+                  label: const Text(
+                    'Proceed',
+                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    backgroundColor: AppThemes.accentBlue,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

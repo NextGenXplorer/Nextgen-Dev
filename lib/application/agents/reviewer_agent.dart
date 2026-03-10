@@ -32,19 +32,19 @@ class ReviewerAgent extends Agent {
 
     try {
       final payload = event.payload as Map<String, dynamic>;
-      final code = payload['code'];
+      final codeLog = payload['codeLog'] ?? '';
       final originalTask = payload['originalTask'];
 
       final prompt = '''
-You are a senior code reviewer. Analyze the following code implementation for the task: $originalTask
+You are a senior code reviewer. Analyze the following implementation logs for the task: $originalTask
 
 Rules:
-- Reject commits with 'console.log' or missing error handling.
-- Provide specific line-number references.
+- Reject commits with obvious flaws or missing error handling based on the log.
+- Provide specific feedback.
 - If approved, output exclusively 'LGTM'.
 
-Code to review:
-$code
+Implementation Context:
+$codeLog
 ''';
 
       final history = [ChatMessage(role: MessageRole.user, content: prompt)];

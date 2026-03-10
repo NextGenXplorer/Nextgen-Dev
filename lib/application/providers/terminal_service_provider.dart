@@ -3,7 +3,6 @@ import '../../infrastructure/services/terminal_service.dart';
 
 final terminalServiceProvider = Provider<TerminalService>((ref) {
   final service = TerminalService();
-  service.bootstrapPRoot(); // Trigger bootstrapping
   ref.onDispose(() {
     service.dispose();
   });

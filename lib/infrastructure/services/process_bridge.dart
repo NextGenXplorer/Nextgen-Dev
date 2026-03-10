@@ -61,6 +61,11 @@ class ProcessBridge {
     }
   }
 
+  /// Injects custom text directly into the output stream before PTY initialization
+  void injectOutput(String data) {
+    _stdoutController.add(data);
+  }
+
   /// Writes raw input directly to the PTY (e.g., from xterm keyboard)
   void write(String data) {
     if (!_isInit || _pty == null) return;

@@ -14,6 +14,7 @@ import 'agents/serve_agent.dart';
 import 'providers/ai_service_provider.dart';
 import '../infrastructure/services/git_service.dart';
 import '../infrastructure/services/dev_server_service.dart';
+import '../infrastructure/services/log_monitor_service.dart';
 
 // Provide a default path for the GitService workspace
 final gitServiceProvider = Provider<GitService>((ref) {
@@ -24,12 +25,20 @@ final devServerServiceProvider = Provider<DevServerService>((ref) {
   return DevServerService(workingDirectory: '.');
 });
 
+final logMonitorServiceProvider = Provider<LogMonitorService>((ref) {
+  final service = LogMonitorService();
+  ref.onDispose(() => service.dispose());
+  return service;
+});
+
 final orchestratorProvider = Provider<AgentOrchestrator>((ref) {
   final bus = ref.watch(agentBusProvider);
   final aiProviderFuture = ref.watch(aiProviderServiceProvider);
   final gitService = ref.watch(gitServiceProvider);
   final devServerService = ref.watch(devServerServiceProvider);
-  final orchestrator = AgentOrchestrator(bus: bus);
+  final logMonitorService = ref.watch(logMonitorServiceProvider);
+  
+  final orchestrator = AgentOrchestrator(bus: bus, logMonitor: logMonitorService);
 
   // We need the AIProvider to be concrete for the agents to function.
   // In a real app we might handle loading states, but for early sprint logic:
@@ -60,13 +69,27 @@ class AgentOrchestrator {
   final AgentBus bus;
   final List<Agent> _agents = [];
   late StreamSubscription<AgentEvent> _subscription;
-  
+  final LogMonitorService? logMonitor;
+
   // Track retries per task description
   final Map<String, int> _retryCounts = {};
   static const int _maxRetries = 2;
 
-  AgentOrchestrator({required this.bus}) {
+  AgentOrchestrator({required this.bus, this.logMonitor}) {
     _subscription = bus.eventStream.listen(_onEvent);
+    
+    // Wire up crash monitoring
+    if (logMonitor != null) {
+      logMonitor!.errorStream.listen((errorLine) {
+         bus.publish(AgentEvent(
+           sourceAgent: 'System (Logcat)',
+           targetAgent: 'DebuggerAgent',
+           type: AgentEventType.error,
+           payload: 'DEVICE CRASH DETECTED:\\n$errorLine',
+         ));
+      });
+      logMonitor!.startMonitoring();
+    }
   }
 
   void registerAgent(Agent agent) {

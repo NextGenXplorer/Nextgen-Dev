@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
 class AppThemes {
-  // Kimi-style color tokens
-  static const Color bgDark = Color(0xFF111111);
-  static const Color surfaceDark = Color(0xFF1C1C1E);
-  static const Color surfaceCard = Color(0xFF222224);
-  static const Color inputBg = Color(0xFF222224);
-  static const Color accentBlue = Color(0xFF3B82F6);
-  static const Color accentBlueSoft = Color(0xFF2563EB);
-  static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFF8E8E93);
-  static const Color dividerColor = Color(0xFF2C2C2E);
-  static const Color errorRed = Color(0xFF7A1515);
+  // Premium Deep Dark Aesthetics
+  static const Color bgDark = Color(0xFF0A0A0C);
+  static const Color surfaceDark = Color(0xFF161618);
+  static const Color surfaceCard = Color(0xFF1E1E22);
+  static const Color inputBg = Color(0xFF161618);
+  static const Color accentBlue = Color(0xFF4D90FE);
+  static const Color accentBlueSoft = Color(0xFF3B7CEB);
+  static const Color textPrimary = Color(0xFFF0F0F5);
+  static const Color textSecondary = Color(0xFFA0A0AB);
+  static const Color dividerColor = Color(0xFF2A2A30);
+  static const Color errorRed = Color(0xFFEF4444);
 
   static final darkTheme = ThemeData(
     brightness: Brightness.dark,

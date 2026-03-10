@@ -25,6 +25,18 @@ class GitService {
     return _runGitCommand(['status']);
   }
 
+  Future<String> log({int count = 5}) async {
+    return _runGitCommand(['log', '-n', count.toString(), '--oneline']);
+  }
+
+  Future<String> resetHard({String commit = 'HEAD'}) async {
+    return _runGitCommand(['reset', '--hard', commit]);
+  }
+
+  Future<String> restore(String filePath) async {
+    return _runGitCommand(['restore', filePath]);
+  }
+
   Future<String> _runGitCommand(List<String> args) async {
     try {
       final result = await Process.run(
@@ -34,11 +46,11 @@ class GitService {
         runInShell: true,
       );
       if (result.exitCode != 0) {
-        throw Exception('Git Error: \${result.stderr}');
+        throw Exception('Git Error: ${result.stderr}');
       }
       return result.stdout.toString();
     } catch (e) {
-      throw Exception('Failed to run git command: \$e');
+      throw Exception('Failed to run git command: $e');
     }
   }
 }

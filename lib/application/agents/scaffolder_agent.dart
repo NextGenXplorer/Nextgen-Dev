@@ -2,9 +2,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../../domain/interfaces/agent.dart';
 import '../../domain/models/agent_event.dart';
+import '../../domain/models/agent_step.dart';
 import '../agent_bus.dart';
 import '../../domain/interfaces/ai_provider.dart';
 import '../../domain/models/chat_message.dart';
+import '../../infrastructure/agent/agent_service.dart';
 
 class ScaffolderAgent extends Agent {
   final AgentBus bus;
@@ -38,52 +40,43 @@ class ScaffolderAgent extends Agent {
       final plan = payload['plan'];
 
       final prompt = '''
-You are a file system architect. Given the following ProjectPlan, output a shell script that creates the project folder structure with boilerplate files.
-Rules:
-- Output ONLY a bash script. No commentary.
-- Use 'mkdir -p' for directories and 'cat > file <<EOF' for file contents.
-- Include realistic boilerplate: package.json, .gitignore, README.md, config files.
-- Use placeholder comments like '# TODO: CoderAgent will fill this' in source files.
-- The script must be idempotent (safe to re-run).
+You are the Scaffolder Agent in a multi-agent system.
+Your job is to generate boilerplate project structures.
+Use the `build_project` tool to create the base directories and files.
+Use `run_terminal_command` for any initial setup commands (e.g. pub get, npm install).
 
 Original Task: $originalTask
 Plan: $plan
 ''';
 
       final history = [ChatMessage(role: MessageRole.user, content: prompt)];
-      final script = await aiProvider.generate(history);
+      final agentService = AgentService(provider: aiProvider, mode: 'Agent');
+      
+      String scaffoldLog = '';
+      
+      await for (final step in agentService.run(history)) {
+         if (step.type == AgentStepType.toolCall) {
+            bus.publish(AgentEvent(sourceAgent: name, targetAgent: 'User', type: AgentEventType.message, payload: 'Tool Call: ${step.content}'));
+         } else if (step.type == AgentStepType.toolResult) {
+            bus.publish(AgentEvent(sourceAgent: name, targetAgent: 'User', type: AgentEventType.message, payload: 'Tool Result: \\n${step.content}'));
+         } else if (step.type == AgentStepType.text || step.type == AgentStepType.finalAnswer) {
+            scaffoldLog += step.content;
+            bus.publish(AgentEvent(sourceAgent: name, targetAgent: 'User', type: AgentEventType.message, payload: step.content));
+         }
+      }
 
       bus.publish(AgentEvent(
         sourceAgent: name,
         targetAgent: 'User',
         type: AgentEventType.message,
-        payload: 'Scaffolding Script Generated:\\n$script',
+        payload: 'The Scaffolder Agent has completed the internal file structure.',
       ));
-
-      // Execute if we are on a platform that supports bash directly easily
-      if (!Platform.isAndroid && !Platform.isIOS && !Platform.isWindows) {
-        try {
-          final result = await Process.run('bash', ['-c', script]);
-          if (result.exitCode == 0) {
-              bus.publish(AgentEvent(
-                sourceAgent: name,
-                targetAgent: 'System',
-                type: AgentEventType.message,
-                payload: 'Scaffolding applied successfully to filesystem.',
-              ));
-          } else {
-             debugPrint('Scaffolding warning: \${result.stderr}');
-          }
-        } catch(e) {
-             debugPrint('Scaffolding shell execution failed: \$e');
-        }
-      }
 
       bus.publish(AgentEvent(
         sourceAgent: name,
         targetAgent: 'CoderAgent',
         type: AgentEventType.taskAssigned,
-        payload: {'originalTask': originalTask, 'plan': plan, 'scaffold': script},
+        payload: {'originalTask': originalTask, 'plan': plan, 'scaffoldLog': scaffoldLog},
       ));
 
       bus.publish(AgentEvent(

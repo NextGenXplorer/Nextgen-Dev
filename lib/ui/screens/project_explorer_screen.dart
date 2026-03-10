@@ -75,12 +75,27 @@ class ProjectExplorerScreen extends ConsumerWidget {
     final progress = totalCount > 0 ? doneCount / totalCount : 0.0;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppThemes.surfaceCard,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppThemes.dividerColor),
+        color: AppThemes.surfaceDark,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppThemes.dividerColor, width: 1.5),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppThemes.surfaceCard,
+            AppThemes.surfaceDark,
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(40),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,40 +171,61 @@ class ProjectExplorerScreen extends ConsumerWidget {
 
   Widget _buildFileList(BuildContext context, dynamic project) {
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
       itemCount: project.filePaths.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, color: AppThemes.dividerColor),
+      separatorBuilder: (_, __) => const SizedBox(height: 4),
       itemBuilder: (context, index) {
         final path = project.filePaths[index];
         final parts = path.split('/');
         final fileName = parts.last;
         final folderPath = parts.length > 1 ? path.substring(0, path.lastIndexOf('/')) : '';
 
-        return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-          leading: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: _getFileColor(fileName).withAlpha(30),
-              borderRadius: BorderRadius.circular(8),
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              final encodedPath = Uri.encodeComponent(path);
+              context.push('/home/projects/${project.id}/editor/$encodedPath');
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: _getFileColor(fileName).withAlpha(25),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _getFileColor(fileName).withAlpha(50), width: 1),
+                    ),
+                    child: Icon(_getFileIcon(fileName), color: _getFileColor(fileName), size: 22),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          fileName,
+                          style: const TextStyle(color: AppThemes.textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                        if (folderPath.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              folderPath,
+                              style: const TextStyle(color: AppThemes.textSecondary, fontSize: 12),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: AppThemes.textSecondary, size: 20),
+                ],
+              ),
             ),
-            child: Icon(_getFileIcon(fileName), color: _getFileColor(fileName), size: 20),
           ),
-          title: Text(
-            fileName,
-            style: const TextStyle(color: AppThemes.textPrimary, fontSize: 15, fontWeight: FontWeight.w500),
-          ),
-          subtitle: folderPath.isNotEmpty 
-            ? Text(
-                folderPath,
-                style: const TextStyle(color: AppThemes.textSecondary, fontSize: 11),
-              )
-            : null,
-          trailing: const Icon(Icons.chevron_right, color: AppThemes.textSecondary, size: 18),
-          onTap: () {
-            final encodedPath = Uri.encodeComponent(path);
-            context.push('/home/projects/${project.id}/editor/$encodedPath');
-          },
         );
       },
     );

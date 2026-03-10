@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:re_editor/re_editor.dart';
+import '../themes.dart';
 
 class CodeEditorWidget extends StatefulWidget {
   final String filePath;
@@ -35,13 +36,13 @@ void main() {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFF1E1E1E), // Dark theme background
+      color: AppThemes.bgDark,
       child: Column(
         children: [
           // File Tab Bar placeholder
           Container(
-            height: 40,
-            color: const Color(0xFF2D2D2D),
+            height: 44,
+            color: AppThemes.surfaceDark,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
@@ -68,25 +69,30 @@ void main() {
 
   Widget _buildTab(String title, bool isActive) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      margin: const EdgeInsets.only(top: 6, right: 2),
       decoration: BoxDecoration(
-        color: isActive ? const Color(0xFF1E1E1E) : Colors.transparent,
-        border: isActive
-            ? const Border(top: BorderSide(color: Colors.blueAccent, width: 2))
-            : null,
+        color: isActive ? AppThemes.bgDark : Colors.transparent,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(8),
+          topRight: Radius.circular(8),
+        ),
+        border: isActive ? Border.all(color: AppThemes.dividerColor, width: 1) : null,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             title,
             style: TextStyle(
-              color: isActive ? Colors.white : Colors.grey,
-              fontSize: 12,
+              color: isActive ? AppThemes.accentBlue : AppThemes.textSecondary,
+              fontSize: 13,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
           const SizedBox(width: 8),
-          Icon(Icons.close, size: 14, color: isActive ? Colors.white : Colors.grey),
+          Icon(Icons.close, size: 14, color: isActive ? AppThemes.textPrimary : AppThemes.textSecondary),
         ],
       ),
     );

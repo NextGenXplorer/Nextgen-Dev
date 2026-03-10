@@ -28,7 +28,15 @@ class GoogleGeminiProvider implements AIProvider {
   List<Content> _mapHistory(List<app_models.ChatMessage> history) {
     return history.where((msg) => msg.role != app_models.MessageRole.system).map((msg) {
       final role = msg.role == app_models.MessageRole.user ? 'user' : 'model';
-      return Content(role, [TextPart(msg.content)]);
+      final parts = <Part>[TextPart(msg.content)];
+      
+      if (msg.images != null && msg.images!.isNotEmpty) {
+        for (final imageBytes in msg.images!) {
+          // Assume image/png for screenshot tool compatibility
+          parts.add(DataPart('image/png', imageBytes));
+        }
+      }
+      return Content(role, parts);
     }).toList();
   }
 }

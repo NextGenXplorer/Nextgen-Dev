@@ -14,4 +14,20 @@ if [ -z "$PROOT_BIN" ] || [ -z "$ROOTFS" ]; then
 fi
 
 # Switch to pseudo-root using proot and spawn a shell
-exec $PROOT_BIN -S $ROOTFS -w /root /bin/bash
+# Bind critical directories to make it a fully functional environment
+exec $PROOT_BIN \
+    --link2symlink \
+    -0 \
+    -r $ROOTFS \
+    -b /dev \
+    -b /sys \
+    -b /proc \
+    -b /storage \
+    -b /sdcard \
+    -w /root \
+    /usr/bin/env -i \
+    HOME=/root \
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    TERM=$TERM \
+    LANG=C.UTF-8 \
+    /bin/bash -l

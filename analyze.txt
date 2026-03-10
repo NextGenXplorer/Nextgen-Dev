@@ -1,0 +1,10 @@
+Analyzing mobile_ai_ide...                                      
+
+   info - The import of 'dart:typed_data' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/foundation.dart' - lib\infrastructure\services\process_bridge.dart:3:8 - unnecessary_import
+   info - Don't invoke 'print' in production code - lib\infrastructure\services\project_service.dart:41:7 - avoid_print
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\ui\screens\onboarding_screen.dart:94:17 - deprecated_member_use
+  error - Unexpected text 'return' - lib\ui\widgets\code_editor_widget.dart:39:5 - unexpected_token
+  error - Too many positional arguments: 0 expected, but 1 found - lib\ui\widgets\code_editor_widget.dart:39:12 - extra_positional_arguments_could_be_named
+  error - Expected to find ')' - lib\ui\widgets\code_editor_widget.dart:68:6 - expected_token
+
+6 issues found. (ran in 2.2s)

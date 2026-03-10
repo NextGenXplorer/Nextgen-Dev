@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import '../../domain/models/chat_message.dart';
 import '../../domain/models/agent_step.dart';
 import '../../domain/interfaces/ai_provider.dart';
@@ -6,23 +7,51 @@ import 'agent_tool.dart';
 import 'web_search_tool.dart';
 import 'url_reader_tool.dart';
 import 'build_project_tool.dart';
+import 'terminal_tool.dart';
+import 'read_file_tool.dart';
+import 'edit_file_tool.dart';
+import 'list_projects_tool.dart';
+import 'get_project_context_tool.dart';
+import 'screenshot_tool.dart';
+import 'git_tool.dart';
+import 'analyzer_tool.dart';
 
 // ── Mode-specific system prompts ──────────────────────────────────────────────
+const _chatSystemPrompt = '''You are a helpful, conversational AI assistant.
+Answer questions directly and concisely. Do not use tools, do not generate complex implementation plans, and do not attempt to manipulate files unless explicitly asked to switch to Agent mode.
+''';
+
 const _agentSystemPrompt = '''You are a powerful AI assistant with real-time internet access and tools.
 
 You have access to these tools — call them using EXACTLY this format when you need information:
 <tool_call>{"name": "web_search", "query": "your search query"}</tool_call>
 <tool_call>{"name": "read_url", "url": "https://example.com/page"}</tool_call>
-<tool_call>{"name": "build_project", "id": "uuid", "name": "Project Name", "description": "...", "files": [...], "tasks": [{"id": "t1", "title": "Setup", "status": "done"}, {"id": "t2", "title": "Implementation", "status": "todo"}]}</tool_call>
+<tool_call>{"name": "build_project", "id": "uuid", "name": "Project Name", "description": "...", "files": [...], "tasks": [{"id": "t1", "title": "Setup", "status": "done"}]}</tool_call>
+<tool_call>{"name": "run_terminal_command", "command": "flutter test", "working_directory": "/path/to/project"}</tool_call>
+<tool_call>{"name": "read_file", "path": "lib/main.dart"}</tool_call>
+<tool_call>{"name": "edit_file", "path": "lib/main.dart", "target_text": "old code", "replacement_text": "new code"}</tool_call>
+<tool_call>{"name": "list_projects"}</tool_call>
+<tool_call>{"name": "get_project_context", "project_id": "uuid"}</tool_call>
+<tool_call>{"name": "take_screenshot"}</tool_call>
+<tool_call>{"name": "git", "command": "status", "project_name": "my_app"}</tool_call>
 
 Rules:
 - ALWAYS use web_search for current events, news, prices, facts that may have changed
 - Use read_url when you need specific details from a webpage found in search results
+- Use list_projects and get_project_context to understand the user's local codebases before modifying them
 - Only call ONE tool per response
 - After getting tool results, you will receive them prefixed with TOOL_RESULT and can continue reasoning
 - Give thorough, well-structured final answers using markdown
-- For complex requests, start by providing an "# Implementation Plan" with a "## Tasks" checklist section.
 - You are running inside a mobile AI IDE app called NextGen
+
+**INTERACTIVE TASK WORKFLOW (CRITICAL):**
+When the user asks you to build or create something complex:
+1. **Gather Requirements:** If the request is too vague, ask clarifying questions first.
+2. **Create Plan:** Output an "# Implementation Plan" with a "## Tasks" section checklist (format: `- [ ] Task Description`). Make the tasks highly sequential (e.g., Task 1: Ask user for details, Task 2: Scaffold, Task 3: Implement Feature). Do NOT execute any building tools yet. Wait for the user to tell you to proceed.
+3. **Execute One-by-One:** When the user tells you to execute/proceed with the plan, look for the first incomplete task (`- [ ]`).
+   - If that task requires user input or details (e.g., "collect portfolio details"), ASK the user and stop.
+   - If that task requires tool usage, use the tool.
+4. **Update Status:** When a single task is fully completed, output the completely updated `## Tasks` list (with that task marked as `- [x]`) and WAIT for the user's next prompt or proceed to the next incomplete task *only* if you don't need any further input. 
 ''';
 
 const _codeSystemPrompt = '''You are an expert software engineer and coding assistant.
@@ -36,10 +65,33 @@ Rules:
 - Point out potential bugs and edge cases
 - Suggest best practices and optimizations
 - For Flutter: follow widget tree best practices and use proper state management
-- For complex requests, start by providing an "# Implementation Plan" with a "## Tasks" checklist section.
 - You have a tool called `build_project` to save complete codebases. Use it when the user asks to "build", "generate", or "develop" the app according to a plan.
   <tool_call>{"name": "build_project", "id": "optional-uuid", "name": "App Name", "description": "...", "files": [...], "tasks": [...]}</tool_call>
-- Task Tracking: Use the `tasks` parameter to track progress. If you are continuing a project, read the project files (including metadata.json) to see what tasks are already done.
+- You have a tool called `run_terminal_command` to execute shell commands like `flutter test` or `npm install`.
+  <tool_call>{"name": "run_terminal_command", "command": "flutter test", "working_directory": "/path/to/project"}</tool_call>
+- You have tools to surgically modify existing files instead of recreating them from scratch:
+  <tool_call>{"name": "read_file", "path": "test/widget_test.dart"}</tool_call>
+  <tool_call>{"name": "edit_file", "path": "lib/main.dart", "target_text": "exact old text to replace", "replacement_text": "new text"}</tool_call>
+- You have memory tools to understand the user's local projects:
+  <tool_call>{"name": "list_projects"}</tool_call>
+  <tool_call>{"name": "get_project_context", "project_id": "uuid"}</tool_call>
+- You can take a screenshot of the connected device to visually verify your UI changes:
+  <tool_call>{"name": "take_screenshot"}</tool_call>
+- **CRITICAL SAFETY:** The `edit_file` tool automatically wraps your edits in a git commit. If a test fails after an edit, you can use the git tool to reset or restore the project:
+  <tool_call>{"name": "git", "command": "log", "project_name": "my_app"}</tool_call>
+  <tool_call>{"name": "git", "command": "restore", "file_path": "lib/main.dart", "project_name": "my_app"}</tool_call>
+- **STATIC ANALYSIS:** You can ask the IDE to statically analyze or auto-format the code using the `dart_analyzer` tool. This is much faster and more accurate than guessing:
+  <tool_call>{"name": "dart_analyzer", "command": "get_errors", "project_name": "my_app"}</tool_call>
+  <tool_call>{"name": "dart_analyzer", "command": "format", "file_path": "lib/main.dart", "project_name": "my_app"}</tool_call>
+
+**INTERACTIVE TASK WORKFLOW (CRITICAL):**
+When the user asks you to build or create something complex:
+1. **Gather Requirements:** If the request is too vague, ask clarifying questions first.
+2. **Create Plan:** Output an "# Implementation Plan" with a "## Tasks" section checklist (format: `- [ ] Task Description`). Make the tasks highly sequential (e.g., Task 1: Ask user for details, Task 2: Scaffold, Task 3: Implement Feature). Do NOT execute any building tools yet. Wait for the user to tell you to proceed.
+3. **Execute One-by-One:** When the user tells you to execute/proceed with the plan, look for the first incomplete task (`- [ ]`).
+   - If that task requires user input or details (e.g., "collect portfolio details"), ASK the user and stop.
+   - If that task requires tool usage, use the tool.
+4. **Update Status:** When a single task is fully completed, output the completely updated `## Tasks` list (with that task marked as `- [x]`) and WAIT for the user's next prompt or proceed to the next incomplete task *only* if you don't need any further input. 
 ''';
 
 const _deepThinkSystemPrompt = '''You are an expert analytical assistant that thinks deeply before answering.
@@ -83,16 +135,26 @@ class AgentService {
     WebSearchTool(),
     UrlReaderTool(),
     BuildProjectTool(),
+    TerminalTool(),
+    ReadFileTool(),
+    EditFileTool(),
+    ListProjectsTool(),
+    GetProjectContextTool(),
+    ScreenshotTool(),
+    GitTool(),
+    AnalyzerTool(),
   ];
 
   AgentService({
     required this.provider,
     this.mode = 'Agent',
-    this.maxToolCalls = 5,
-  });
+    int? maxToolCalls,
+  }) : maxToolCalls = maxToolCalls ?? (mode == 'Chat' ? 0 : 5);
 
   String _systemPrompt() {
     switch (mode) {
+      case 'Chat':
+        return _chatSystemPrompt;
       case 'Code':
         return _codeSystemPrompt;
       case 'Deep Think':
@@ -187,10 +249,16 @@ class AgentService {
         }
 
         // Emit the tool result step (shown in UI)
+        // If it's a screenshot, don't stream the giant base64 string to the UI
+        final displayResult = toolName == 'take_screenshot' && !result.startsWith('Error')
+            ? '[Screenshot captured natively]'
+            : result;
+
         yield AgentStep(
           type: AgentStepType.toolResult,
-          content: result,
+          content: displayResult,
           toolName: toolName,
+          toolParams: params,
         );
 
         // Inject result back into message history for next loop
@@ -198,9 +266,23 @@ class AgentService {
           role: MessageRole.model,
           content: accumulated,
         );
+        
+        String resultText = result;
+        Uint8List? imageBytes;
+        
+        if (toolName == 'take_screenshot' && !result.startsWith('Error')) {
+           try {
+             imageBytes = base64Decode(result);
+             resultText = 'Screenshot captured successfully and attached as an image. Analyze it to verify the UI.';
+           } catch (e) {
+             resultText = 'Failed to decode screenshot: $e';
+           }
+        }
+
         final toolResultMsg = ChatMessage(
           role: MessageRole.user,
-          content: 'TOOL_RESULT for $toolName:\n$result\n\nContinue your answer.',
+          content: 'TOOL_RESULT for $toolName:\n$resultText\n\nContinue your answer.',
+          images: imageBytes != null ? [imageBytes] : null,
         );
 
         messages.add(toolCallMsg);

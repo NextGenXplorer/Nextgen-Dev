@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../domain/models/agent_step.dart';
 import '../themes.dart';
 
@@ -128,6 +129,30 @@ class _ToolStepBubbleState extends State<ToolStepBubble>
                                   style: const TextStyle(
                                     color: AppThemes.accentBlue,
                                     fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            if (isResult && widget.step.toolName == 'build_project')
+                              Padding(
+                                padding: const EdgeInsets.only(top: 12, bottom: 4),
+                                child: TextButton.icon(
+                                  onPressed: () {
+                                    final id = widget.step.toolParams?['id']?.toString() ?? 
+                                               widget.step.toolParams?['name']?.toString() ?? '';
+                                    if (id.isNotEmpty) {
+                                      // Defaulting route to project explorer
+                                      context.push('/home/projects/$id');
+                                    }
+                                  },
+                                  icon: const Icon(Icons.folder_open, size: 16, color: AppThemes.accentBlue),
+                                  label: const Text(
+                                    'Open Workspace', 
+                                    style: TextStyle(color: AppThemes.accentBlue, fontWeight: FontWeight.bold)
+                                  ),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    backgroundColor: AppThemes.accentBlue.withAlpha(20),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                   ),
                                 ),
                               ),

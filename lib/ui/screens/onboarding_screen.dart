@@ -17,6 +17,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   
   String _selectedProvider = 'gemini';
   bool _isLoading = false;
+  bool _isObscured = true;
 
   final Map<String, String> _providerLabels = {
     'gemini': 'Google Gemini API Key',
@@ -135,11 +136,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               
               TextField(
                 controller: _keyController,
-                obscureText: true,
+                obscureText: _isObscured,
                 decoration: InputDecoration(
                   labelText: isLocal ? 'API Key (Optional)' : _providerLabels[_selectedProvider],
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.key),
+                  suffixIcon: IconButton(
+                    icon: Icon(_isObscured ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () {
+                      setState(() {
+                        _isObscured = !_isObscured;
+                      });
+                    },
+                  ),
                 ),
               ),
               

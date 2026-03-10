@@ -6,6 +6,7 @@ enum AgentEventType {
   message,
   error,
   deployRequested,
+  agentStep,
 }
 
 class AgentEvent {
@@ -25,6 +26,6 @@ class AgentEvent {
 
   @override
   String toString() {
-    return 'AgentEvent(source: \$sourceAgent, target: \$targetAgent, type: \$type, payload: \$payload)';
+    return 'AgentEvent(source: $sourceAgent, target: $targetAgent, type: $type, payload: $payload)';
   }
 }

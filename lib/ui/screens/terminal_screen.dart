@@ -87,23 +87,29 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> with TickerProv
                   controller: _tabController,
                   isScrollable: true,
                   labelColor: AppThemes.accentBlue,
-                  unselectedLabelColor: Colors.white38,
+                  unselectedLabelColor: Colors.white24,
                   indicatorColor: AppThemes.accentBlue,
+                  indicatorWeight: 3,
+                  indicatorSize: TabBarIndicatorSize.tab,
                   dividerColor: Colors.transparent,
-                  indicatorSize: TabBarIndicatorSize.label,
+                  labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                  unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                   tabs: sessions.map<Widget>((s) => Tab(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.terminal, size: 14),
-                        const SizedBox(width: 8),
-                        Text(s.title),
-                        const SizedBox(width: 4),
-                        GestureDetector(
-                          onTap: () => ref.read(terminalServiceProvider).closeSession(s.id),
-                          child: const Icon(Icons.close, size: 12),
-                        ),
-                      ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.terminal_rounded, size: 14),
+                          const SizedBox(width: 8),
+                          Text(s.title.toUpperCase()),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => ref.read(terminalServiceProvider).closeSession(s.id),
+                            child: Icon(Icons.close_rounded, size: 14, color: Colors.white.withAlpha(50)),
+                          ),
+                        ],
+                      ),
                     ),
                   )).toList(),
                 ),

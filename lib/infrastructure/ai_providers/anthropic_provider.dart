@@ -24,9 +24,28 @@ class AnthropicProvider implements AIProvider {
       body: jsonEncode({
         'model': model,
         'max_tokens': 4096,
-        'messages': history.map((m) => {
-          'role': m.role == MessageRole.user ? 'user' : 'assistant',
-          'content': m.content,
+        'messages': history.map((m) {
+          if (m.images != null && m.images!.isNotEmpty) {
+             return {
+               'role': m.role == MessageRole.user ? 'user' : 'assistant',
+               'content': [
+                 ...m.images!.map((bytes) => {
+                   'type': 'image',
+                   'source': {
+                     'type': 'base64',
+                     'media_type': 'image/png',
+                     'data': base64Encode(bytes),
+                   }
+                 }),
+                 {'type': 'text', 'text': m.content},
+                 
+               ],
+             };
+          }
+          return {
+            'role': m.role == MessageRole.user ? 'user' : 'assistant',
+            'content': m.content,
+          };
         }).toList(),
       }),
     );

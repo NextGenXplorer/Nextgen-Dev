@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../infrastructure/keystore_service.dart';
@@ -28,12 +29,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // User info
   final _userNameCtrl = TextEditingController();
 
+  // Model selection
+  String _geminiModel = 'gemini-2.5-flash';
+  String _openaiModel = 'gpt-4o-mini';
+  String _anthropicModel = 'claude-3-5-haiku-20241022';
+  String _groqModel = 'llama3-70b-8192';
+  final _openrouterModelCtrl = TextEditingController();
+
   String _activeProvider = 'gemini';
   bool _isLoading = true;
   final Map<String, bool> _obscured = {};
   final Map<String, bool> _savingMap = {};
-  // Track which fields have been edited by the user (vs showing masked placeholder)
-  final Map<String, bool> _isDirty = {};
 
   @override
   void initState() {
@@ -47,41 +53,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _activeProvider = await keystore.retrieve('SELECTED_AI_PROVIDER') ?? 'gemini';
     _userNameCtrl.text = await keystore.retrieve('USER_NAME') ?? '';
 
-    // Cloud API keys (masked)
-    _geminiCtrl.text = await _maskedOr(keystore, 'GEMINI_API_KEY');
-    _openaiCtrl.text = await _maskedOr(keystore, 'OPENAI_API_KEY');
-    _anthropicCtrl.text = await _maskedOr(keystore, 'ANTHROPIC_API_KEY');
-    _groqCtrl.text = await _maskedOr(keystore, 'GROQ_API_KEY');
-    _openrouterCtrl.text = await _maskedOr(keystore, 'OPENROUTER_API_KEY');
+    // Cloud API keys (load actual keys! obscureText handles hiding them securely in the UI)
+    _geminiCtrl.text = await keystore.retrieve('GEMINI_API_KEY') ?? '';
+    _openaiCtrl.text = await keystore.retrieve('OPENAI_API_KEY') ?? '';
+    _anthropicCtrl.text = await keystore.retrieve('ANTHROPIC_API_KEY') ?? '';
+    _groqCtrl.text = await keystore.retrieve('GROQ_API_KEY') ?? '';
+    _openrouterCtrl.text = await keystore.retrieve('OPENROUTER_API_KEY') ?? '';
+
+    // Models
+    _geminiModel = await keystore.retrieve('GEMINI_MODEL') ?? 'gemini-2.5-flash';
+    _openaiModel = await keystore.retrieve('OPENAI_MODEL') ?? 'gpt-4o-mini';
+    _anthropicModel = await keystore.retrieve('ANTHROPIC_MODEL') ?? 'claude-3-5-haiku-20241022';
+    _groqModel = await keystore.retrieve('GROQ_MODEL') ?? 'llama3-70b-8192';
+    _openrouterModelCtrl.text = await keystore.retrieve('OPENROUTER_MODEL') ?? 'openai/gpt-4o-mini';
 
     // Local AI
     _localUrlCtrl.text =
         await keystore.retrieve('LOCAL_AI_BASE_URL') ?? 'http://10.0.2.2:11434/v1';
     _localModelCtrl.text = await keystore.retrieve('LOCAL_AI_MODEL') ?? 'llama3';
-    _localKeyCtrl.text = await _maskedOr(keystore, 'LOCAL_AI_API_KEY');
+    _localKeyCtrl.text = await keystore.retrieve('LOCAL_AI_API_KEY') ?? '';
 
     if (mounted) setState(() => _isLoading = false);
   }
 
-  Future<String> _maskedOr(KeystoreService ks, String key) async {
-    final val = await ks.retrieve(key);
-    if (val == null || val.isEmpty) return '';
-    return KeystoreService.maskKey(val);
-  }
-
   Future<void> _saveKey(String keystoreKey, String value, String providerId) async {
-    // Only save if the user has actually typed something new (not just the masked placeholder)
+    // Save exactly what is in the field
     if (value.isEmpty) return;
-    if (value.contains('*') && !(_isDirty[keystoreKey] ?? false)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tap the field and paste your new key first'),
-          backgroundColor: Color(0xFF7A1515),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
     setState(() => _savingMap[providerId] = true);
     final keystore = ref.read(keystoreServiceProvider);
     await keystore.store(keystoreKey, value);
@@ -129,6 +126,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _anthropicCtrl.dispose();
     _groqCtrl.dispose();
     _openrouterCtrl.dispose();
+    _openrouterModelCtrl.dispose();
     _localUrlCtrl.dispose();
     _localModelCtrl.dispose();
     _localKeyCtrl.dispose();
@@ -139,19 +137,61 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppThemes.bgDark,
-      appBar: AppBar(
-        backgroundColor: AppThemes.bgDark,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-          onPressed: () => Navigator.of(context).pop(),
+      backgroundColor: Colors.black,
+      extendBodyBehindAppBar: true,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppThemes.bgDark.withAlpha(150),
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.white.withAlpha(10),
+                    width: 0.5,
+                  ),
+                ),
+              ),
+              child: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                centerTitle: true,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: AppThemes.textPrimary),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                title: const Text(
+                  'Settings',
+                  style: TextStyle(
+                    color: AppThemes.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
-        title: const Text('Settings'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppThemes.accentBlue))
-          : ListView(
-              padding: const EdgeInsets.all(16),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0.8, -0.6),
+            radius: 1.5,
+            colors: [
+              Color(0xFF1A1628), // Deep purple mesh top right
+              Color(0xFF0A0A0C),
+              Color(0xFF0A0A0C),
+            ],
+            stops: [0.0, 0.4, 1.0],
+          ),
+        ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppThemes.accentBlue))
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(16, kToolbarHeight + 32, 16, 32),
               children: [
                 // Profile Section
                 _sectionHeader('Profile'),
@@ -220,11 +260,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ctrl: _geminiCtrl,
                     keystoreKey: 'GEMINI_API_KEY',
                   ),
+                  _buildModelDropdown(
+                    value: _geminiModel,
+                    options: const ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+                    keystoreKey: 'GEMINI_MODEL',
+                    onChanged: (val) => setState(() => _geminiModel = val),
+                  ),
                   _divider(),
                   _buildKeyRow(
                     model: allModels[1], // OpenAI
                     ctrl: _openaiCtrl,
                     keystoreKey: 'OPENAI_API_KEY',
+                  ),
+                  _buildModelDropdown(
+                    value: _openaiModel,
+                    options: const ['gpt-4o', 'gpt-4o-mini', 'o1', 'o1-mini'],
+                    keystoreKey: 'OPENAI_MODEL',
+                    onChanged: (val) => setState(() => _openaiModel = val),
                   ),
                   _divider(),
                   _buildKeyRow(
@@ -232,17 +284,48 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ctrl: _anthropicCtrl,
                     keystoreKey: 'ANTHROPIC_API_KEY',
                   ),
+                  _buildModelDropdown(
+                    value: _anthropicModel,
+                    options: const ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
+                    keystoreKey: 'ANTHROPIC_MODEL',
+                    onChanged: (val) => setState(() => _anthropicModel = val),
+                  ),
                   _divider(),
                   _buildKeyRow(
                     model: allModels[3], // Groq
                     ctrl: _groqCtrl,
                     keystoreKey: 'GROQ_API_KEY',
                   ),
+                  _buildModelDropdown(
+                    value: _groqModel,
+                    options: const ['llama3-70b-8192', 'llama3-8b-8192', 'mixtral-8x7b-32768', 'gemma2-9b-it'],
+                    keystoreKey: 'GROQ_MODEL',
+                    onChanged: (val) => setState(() => _groqModel = val),
+                  ),
                   _divider(),
                   _buildKeyRow(
                     model: allModels[4], // OpenRouter
                     ctrl: _openrouterCtrl,
                     keystoreKey: 'OPENROUTER_API_KEY',
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 32, right: 0, bottom: 8),
+                    child: _buildTextField(
+                      ctrl: _openrouterModelCtrl,
+                      label: 'Model ID (e.g. openai/gpt-4o)',
+                      icon: Icons.auto_awesome,
+                      onSave: () async {
+                        final ks = ref.read(keystoreServiceProvider);
+                        final messenger = ScaffoldMessenger.of(context);
+                        await ks.store('OPENROUTER_MODEL', _openrouterModelCtrl.text.trim());
+                        ref.invalidate(aiProviderServiceProvider);
+                        if (mounted) {
+                          messenger.showSnackBar(
+                            const SnackBar(content: Text('OpenRouter Model saved ✅')),
+                          );
+                        }
+                      },
+                    ),
                   ),
                 ]),
                 const SizedBox(height: 24),
@@ -292,21 +375,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ]),
                 const SizedBox(height: 32),
-              ],
+                ],
+              ),
             ),
     );
   }
 
   Widget _sectionHeader(String label) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      padding: const EdgeInsets.only(left: 8, bottom: 12),
       child: Text(
         label.toUpperCase(),
         style: const TextStyle(
           color: AppThemes.textSecondary,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 1.0,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.5,
         ),
       ),
     );
@@ -315,8 +399,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildCard(List<Widget> children) {
     return Container(
       decoration: BoxDecoration(
-        color: AppThemes.surfaceCard,
-        borderRadius: BorderRadius.circular(14),
+        color: const Color(0xFF161618).withAlpha(180),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withAlpha(10), width: 0.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(40),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          )
+        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(children: children),
@@ -324,10 +416,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _divider() {
-    return const Divider(
+    return Divider(
       height: 1,
-      indent: 56,
-      color: AppThemes.dividerColor,
+      indent: 52,
+      color: Colors.white.withAlpha(5),
     );
   }
 
@@ -368,15 +460,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     fontSize: 13,
                     fontFamily: 'monospace',
                   ),
-                  // Clear masked placeholder when user taps so they can paste fresh
-                  onTap: () {
-                    if (ctrl.text.contains('*')) {
-                      ctrl.clear();
-                      setState(() => _isDirty[keystoreKey] = true);
-                    }
-                  },
-                  // Mark as dirty whenever user types
-                  onChanged: (_) => setState(() => _isDirty[keystoreKey] = true),
                   decoration: InputDecoration(
                     hintText: hint ?? 'Paste API key...',
                     hintStyle: const TextStyle(
@@ -384,9 +467,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       fontSize: 13,
                     ),
                     filled: true,
-                    fillColor: AppThemes.bgDark,
+                    fillColor: Colors.black.withAlpha(80),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,
                     ),
                     contentPadding:
@@ -394,7 +477,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     isDense: true,
                     suffixIcon: IconButton(
                       icon: Icon(
-                        isObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        isObscured ? Icons.visibility_off_rounded : Icons.visibility_rounded,
                         size: 16,
                         color: AppThemes.textSecondary,
                       ),
@@ -460,24 +543,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Text(
                   label,
                   style: const TextStyle(
-                    color: AppThemes.textSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                    color: AppThemes.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 6),
                 TextField(
                   controller: ctrl,
-                  style: const TextStyle(color: AppThemes.textPrimary, fontSize: 14),
+                  style: const TextStyle(color: AppThemes.textPrimary, fontSize: 13),
                   decoration: InputDecoration(
+                    hintText: 'Enter $label...',
+                    hintStyle: const TextStyle(color: AppThemes.textSecondary, fontSize: 13),
                     filled: true,
-                    fillColor: AppThemes.bgDark,
+                    fillColor: Colors.black.withAlpha(80),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,
                     ),
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     isDense: true,
                   ),
                   onSubmitted: (_) => onSave(),
@@ -488,7 +572,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(width: 10),
           GestureDetector(
             onTap: onSave,
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: AppThemes.accentBlue.withAlpha(25),
@@ -508,4 +593,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
   }
+
+  Widget _buildModelDropdown({
+    required String value,
+    required List<String> options,
+    required String keystoreKey,
+    required ValueChanged<String> onChanged,
+  }) {
+    // Ensure the current value is in the options list
+    final List<String> finalOptions = [...options];
+    if (!finalOptions.contains(value)) {
+      finalOptions.add(value);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 48, right: 16, bottom: 12),
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: Colors.black.withAlpha(80),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: value,
+            isExpanded: true,
+            dropdownColor: AppThemes.surfaceDark,
+            icon: const Icon(Icons.arrow_drop_down, color: AppThemes.textSecondary),
+            style: const TextStyle(color: AppThemes.textPrimary, fontSize: 13),
+            onChanged: (String? newValue) async {
+              if (newValue != null && newValue != value) {
+                final ks = ref.read(keystoreServiceProvider);
+                await ks.store(keystoreKey, newValue);
+                ref.invalidate(aiProviderServiceProvider);
+                onChanged(newValue);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Model updated ✅'), backgroundColor: AppThemes.surfaceCard,),
+                  );
+                }
+              }
+            },
+            items: finalOptions.map<DropdownMenuItem<String>>((String modelStr) {
+              return DropdownMenuItem<String>(
+                value: modelStr,
+                child: Text(modelStr),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
 }
+
