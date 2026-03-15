@@ -9,7 +9,9 @@ final conversationServiceProvider = Provider<ConversationService>((ref) {
   return ConversationService();
 });
 
-final conversationListProvider = FutureProvider<List<Conversation>>((ref) async {
+final conversationListProvider = FutureProvider<List<Conversation>>((
+  ref,
+) async {
   final service = ref.watch(conversationServiceProvider);
   return service.loadAll();
 });
@@ -26,7 +28,9 @@ class ConversationService {
     return raw
         .map((e) {
           try {
-            return Conversation.fromJson(json.decode(e) as Map<String, dynamic>);
+            return Conversation.fromJson(
+              json.decode(e) as Map<String, dynamic>,
+            );
           } catch (_) {
             return null;
           }
@@ -68,7 +72,8 @@ class ConversationService {
   String generateTitle(List<ChatMessage> messages) {
     final firstUser = messages.firstWhere(
       (m) => m.role == MessageRole.user,
-      orElse: () => const ChatMessage(role: MessageRole.user, content: 'New Chat'),
+      orElse: () =>
+          const ChatMessage(role: MessageRole.user, content: 'New Chat'),
     );
     final title = firstUser.content;
     return title.length > 40 ? '${title.substring(0, 40)}...' : title;

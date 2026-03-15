@@ -15,7 +15,8 @@ class LogFilter {
     String sanitized = log;
     for (final secret in _secrets) {
       if (secret.length > 4) {
-        final masked = '${'*' * (secret.length - 4)}${secret.substring(secret.length - 4)}';
+        final masked =
+            '${'*' * (secret.length - 4)}${secret.substring(secret.length - 4)}';
         sanitized = sanitized.replaceAll(secret, masked);
       } else {
         sanitized = sanitized.replaceAll(secret, '****');

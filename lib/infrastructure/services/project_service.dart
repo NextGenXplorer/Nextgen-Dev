@@ -1,30 +1,47 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../storage/workspace_manager.dart';
 import '../../domain/models/project.dart';
+import '../../domain/models/agent_event.dart';
+import '../../application/agent_bus.dart';
+import '../../application/providers/storage_providers.dart';
 
-final projectServiceProvider = Provider((ref) => ProjectService());
-
-final projectListProvider = FutureProvider<List<Project>>((ref) {
-  return ref.read(projectServiceProvider).listProjects();
+final projectServiceProvider = ChangeNotifierProvider((ref) {
+  final manager = ref.watch(workspaceManagerProvider);
+  final agentBus = ref.watch(agentBusProvider);
+  return ProjectService(manager, agentBus);
 });
 
-class ProjectService {
-  Future<Directory> _getProjectsDir() async {
-    final docDir = await getApplicationDocumentsDirectory();
-    final dir = Directory('${docDir.path}/Projects');
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-    return dir;
+final projectListProvider = FutureProvider<List<Project>>((ref) {
+  final service = ref.watch(projectServiceProvider);
+  return service.listProjects();
+});
+
+class ProjectService extends ChangeNotifier {
+  final WorkspaceManager _workspaceManager;
+  final AgentBus _agentBus;
+
+  ProjectService(this._workspaceManager, this._agentBus) {
+    _agentBus.eventStream.listen((event) {
+      if (event.type == AgentEventType.fileRefreshRequested) {
+        notifyListeners();
+      }
+    });
   }
 
   Future<List<Project>> listProjects() async {
-    final dir = await _getProjectsDir();
     final List<Project> projects = [];
-    
     try {
+      final rootPath = await _workspaceManager.getWorkspaceRootPath();
+      final dir = Directory(rootPath);
+      
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+        return [];
+      }
+
       final List<FileSystemEntity> entities = await dir.list().toList();
       for (var entity in entities) {
         if (entity is Directory) {
@@ -35,29 +52,32 @@ class ProjectService {
           }
         }
       }
-      // Sort by newest first
       projects.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
-      print('Error listing projects: $e');
+      debugPrint('Error listing projects: $e');
     }
-    
     return projects;
   }
 
   Future<String> readFile(String projectId, String relativePath) async {
-    final docDir = await getApplicationDocumentsDirectory();
-    final file = File('${docDir.path}/Projects/$projectId/$relativePath');
+    final absolutePath = await _workspaceManager.resolvePath(relativePath, projectId: projectId);
+    final file = File(absolutePath);
     if (await file.exists()) {
       return await file.readAsString();
     }
-    throw Exception('File not found: $relativePath');
+    throw Exception('File not found: $relativePath at ${file.path}');
   }
 
   Future<void> deleteProject(String id) async {
-    final docDir = await getApplicationDocumentsDirectory();
-    final dir = Directory('${docDir.path}/Projects/$id');
-    if (await dir.exists()) {
-      await dir.delete(recursive: true);
+    try {
+      final projectPath = await _workspaceManager.resolvePath(id);
+      final dir = Directory(projectPath);
+      if (await dir.exists()) {
+        await dir.delete(recursive: true);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error deleting project: $e');
     }
   }
 }

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../infrastructure/services/project_service.dart';
 import '../../domain/models/project.dart';
 import '../themes.dart';
+import '../widgets/app_drawer.dart';
 
 class ProjectsScreen extends ConsumerStatefulWidget {
   const ProjectsScreen({super.key});
@@ -20,6 +21,7 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
 
     return Scaffold(
       backgroundColor: AppThemes.bgDark,
+      drawer: const AppDrawer(currentConversationId: null),
       appBar: AppBar(
         backgroundColor: AppThemes.bgDark,
         elevation: 0,
@@ -39,11 +41,10 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
         ],
       ),
       body: projectsAsync.when(
-        data: (projects) => projects.isEmpty
-            ? _buildEmptyState()
-            : _buildProjectList(projects),
+        data: (projects) =>
+            projects.isEmpty ? _buildEmptyState() : _buildProjectList(projects),
         loading: () => const Center(
-          child: CircularProgressIndicator(color: AppThemes.accentBlue),
+          child: CircularProgressIndicator(color: AppThemes.accentCyan),
         ),
         error: (err, stack) => Center(
           child: Text('Error: $err', style: const TextStyle(color: Colors.red)),
@@ -57,15 +58,19 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.folder_open_outlined,
-              size: 80, color: AppThemes.textSecondary.withAlpha(50)),
+          Icon(
+            Icons.folder_open_outlined,
+            size: 80,
+            color: AppThemes.textSecondary.withAlpha(50),
+          ),
           const SizedBox(height: 16),
           const Text(
             'No projects yet',
             style: TextStyle(
-                color: AppThemes.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w600),
+              color: AppThemes.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 8),
           const Padding(
@@ -84,7 +89,8 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
   Widget _buildProjectList(List<Project> projects) {
     return RefreshIndicator(
       onRefresh: () async => ref.invalidate(projectListProvider),
-      color: AppThemes.accentBlue,
+      color: AppThemes.accentCyan,
+      backgroundColor: AppThemes.surfaceDark,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: projects.length,
@@ -124,10 +130,18 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: AppThemes.accentBlue.withAlpha(30),
+                  color: AppThemes.accentCyan.withAlpha(20),
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppThemes.accentCyan.withAlpha(50),
+                    width: 0.5,
+                  ),
                 ),
-                child: const Icon(Icons.code, color: AppThemes.accentBlue, size: 28),
+                child: const Icon(
+                  Icons.code,
+                  color: AppThemes.accentCyan,
+                  size: 28,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -155,30 +169,43 @@ class _ProjectsScreenState extends ConsumerState<ProjectsScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(Icons.access_time,
-                            color: AppThemes.textSecondary, size: 12),
+                        const Icon(
+                          Icons.access_time,
+                          color: AppThemes.textSecondary,
+                          size: 12,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           dateStr,
                           style: const TextStyle(
-                              color: AppThemes.textSecondary, fontSize: 11),
+                            color: AppThemes.textSecondary,
+                            fontSize: 11,
+                          ),
                         ),
                         const SizedBox(width: 12),
-                        const Icon(Icons.insert_drive_file_outlined,
-                            color: AppThemes.textSecondary, size: 12),
+                        const Icon(
+                          Icons.insert_drive_file_outlined,
+                          color: AppThemes.textSecondary,
+                          size: 12,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '${project.filePaths.length} files',
                           style: const TextStyle(
-                              color: AppThemes.textSecondary, fontSize: 11),
+                            color: AppThemes.textSecondary,
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios,
-                  color: AppThemes.textSecondary, size: 16),
+              const Icon(
+                Icons.arrow_forward_ios,
+                color: AppThemes.textSecondary,
+                size: 16,
+              ),
             ],
           ),
         ),
@@ -198,19 +225,36 @@ class ProjectDetailScreen extends ConsumerWidget {
       backgroundColor: AppThemes.bgDark,
       appBar: AppBar(
         backgroundColor: AppThemes.bgDark,
-        title: Text('Project $id', style: const TextStyle(color: AppThemes.textPrimary)),
+        title: Text(
+          'Project $id',
+          style: const TextStyle(color: AppThemes.textPrimary),
+        ),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.construction, size: 60, color: AppThemes.accentBlue),
+            const Icon(
+              Icons.construction,
+              size: 60,
+              color: AppThemes.accentCyan,
+            ),
             const SizedBox(height: 16),
-            Text('Explorer for $id coming soon...',
-                style: const TextStyle(color: AppThemes.textSecondary)),
+            Text(
+              'Explorer for $id coming soon...',
+              style: const TextStyle(color: AppThemes.textSecondary),
+            ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => context.pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppThemes.accentCyan.withAlpha(20),
+                foregroundColor: AppThemes.accentCyan,
+                side: BorderSide(
+                  color: AppThemes.accentCyan.withAlpha(50),
+                  width: 1,
+                ),
+              ),
               child: const Text('Go Back'),
             ),
           ],
@@ -219,4 +263,3 @@ class ProjectDetailScreen extends ConsumerWidget {
     );
   }
 }
-

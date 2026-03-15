@@ -1,21 +1,28 @@
 import 'package:flutter/material.dart';
 
 class AppThemes {
-  // Premium Deep Dark Aesthetics
-  static const Color bgDark = Color(0xFF0A0A0C);
-  static const Color surfaceDark = Color(0xFF161618);
-  static const Color surfaceCard = Color(0xFF1E1E22);
-  static const Color inputBg = Color(0xFF161618);
-  static const Color accentBlue = Color(0xFF4D90FE);
-  static const Color accentBlueSoft = Color(0xFF3B7CEB);
-  static const Color textPrimary = Color(0xFFF0F0F5);
-  static const Color textSecondary = Color(0xFFA0A0AB);
-  static const Color dividerColor = Color(0xFF2A2A30);
-  static const Color errorRed = Color(0xFFEF4444);
+  // 🌌 SuperGravity: Aurora Obsidian Color Palette
+  static const Color bgDark = Color(0xFF05070A); // Deep Galactic Ink
+  static const Color surfaceDark = Color(0xFF0F172A); // Frosted Obsidian
+  static const Color surfaceCard = Color(0xFF161B22); // Elevated Obsidian
+  static const Color inputBg = Color(0xFF0B101A); // Dark Bridge
+
+  // ⚡ Energy Accents
+  static const Color accentCyan = Color(0xFF00F5FF); // Electric Aurora
+  static const Color accentCyanSoft = Color(0xFF0099B3);
+  static const Color accentCobalt = Color(0xFF2E3192); // Deep Space Cobalt
+  static const Color accentGold = Color(0xFFFFD700); // Sun-Flare Gold
+  static const Color accentGreen = Color(0xFF4ADE80); // Success Emerald
+
+  // 📝 Typography Colors
+  static const Color textPrimary = Color(0xFFF8FAFC); // Silken Pearl
+  static const Color textSecondary = Color(0xFF94A3B8); // Muted Steel
+  static const Color dividerColor = Color(0xFF1E293B); // Thin Light-Line
+  static const Color errorRed = Color(0xFFFF2D55); // Neon Crimson
 
   static final darkTheme = ThemeData(
     brightness: Brightness.dark,
-    primaryColor: accentBlue,
+    primaryColor: accentCyan,
     scaffoldBackgroundColor: bgDark,
     appBarTheme: const AppBarTheme(
       backgroundColor: bgDark,
@@ -24,33 +31,35 @@ class AppThemes {
       iconTheme: IconThemeData(color: textPrimary),
       titleTextStyle: TextStyle(
         color: textPrimary,
-        fontSize: 17,
-        fontWeight: FontWeight.w600,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
         fontFamily: 'Inter',
+        letterSpacing: -0.5,
       ),
     ),
     colorScheme: const ColorScheme.dark(
-      primary: accentBlue,
-      secondary: accentBlueSoft,
+      primary: accentCyan,
+      secondary: accentGold,
       surface: surfaceDark,
       error: errorRed,
+      onPrimary: bgDark,
+      onSurface: textPrimary,
     ),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-      backgroundColor: surfaceDark,
-      selectedItemColor: accentBlue,
+      backgroundColor:
+          Colors.transparent, // Floating glassmorphism will handle bg
+      selectedItemColor: accentCyan,
       unselectedItemColor: textSecondary,
       type: BottomNavigationBarType.fixed,
       elevation: 0,
     ),
-    dividerTheme: const DividerThemeData(
-      color: dividerColor,
-      thickness: 0.5,
-    ),
+    dividerTheme: const DividerThemeData(color: dividerColor, thickness: 0.5),
     cardTheme: CardThemeData(
-      color: surfaceCard,
+      color: surfaceDark,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: dividerColor, width: 0.5),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
@@ -58,20 +67,39 @@ class AppThemes {
       fillColor: inputBg,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(24),
-        borderSide: BorderSide.none,
+        borderSide: const BorderSide(color: dividerColor, width: 1),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(24),
+        borderSide: const BorderSide(color: dividerColor, width: 1),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(24),
+        borderSide: const BorderSide(color: accentCyan, width: 1.5),
       ),
       hintStyle: const TextStyle(color: textSecondary, fontSize: 15),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: accentCyan,
+        foregroundColor: bgDark,
+        elevation: 8,
+        shadowColor: accentCyan.withOpacity(0.4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+      ),
     ),
     useMaterial3: true,
     fontFamily: 'Inter',
   );
 
-  // Keep light theme for future preference toggle
+  // Light theme stub (SuperGravity is meant to be Dark Mode native)
   static final lightTheme = ThemeData(
     brightness: Brightness.light,
-    primaryColor: accentBlue,
-    scaffoldBackgroundColor: const Color(0xFFF2F2F7),
+    primaryColor: accentCyan,
+    scaffoldBackgroundColor: const Color(0xFFF8FAFC),
     useMaterial3: true,
     fontFamily: 'Inter',
   );

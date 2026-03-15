@@ -22,10 +22,14 @@ class GroqProvider implements AIProvider {
       },
       body: jsonEncode({
         'model': model,
-        'messages': history.map((m) => {
-          'role': m.role == MessageRole.user ? 'user' : 'assistant',
-          'content': m.content,
-        }).toList(),
+        'messages': history
+            .map(
+              (m) => {
+                'role': m.role == MessageRole.user ? 'user' : 'assistant',
+                'content': m.content,
+              },
+            )
+            .toList(),
       }),
     );
 
@@ -39,7 +43,10 @@ class GroqProvider implements AIProvider {
 
   @override
   Stream<String> generateStream(List<ChatMessage> history) async* {
-    final request = http.Request('POST', Uri.parse('https://api.groq.com/openai/v1/chat/completions'));
+    final request = http.Request(
+      'POST',
+      Uri.parse('https://api.groq.com/openai/v1/chat/completions'),
+    );
     request.headers.addAll({
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $apiKey',
@@ -48,10 +55,14 @@ class GroqProvider implements AIProvider {
     request.body = jsonEncode({
       'model': model,
       'stream': true,
-      'messages': history.map((m) => {
-        'role': m.role == MessageRole.user ? 'user' : 'assistant',
-        'content': m.content,
-      }).toList(),
+      'messages': history
+          .map(
+            (m) => {
+              'role': m.role == MessageRole.user ? 'user' : 'assistant',
+              'content': m.content,
+            },
+          )
+          .toList(),
     });
 
     final response = await http.Client().send(request);

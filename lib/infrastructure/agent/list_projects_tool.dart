@@ -22,8 +22,7 @@ class ListProjectsTool implements AgentTool {
   Future<String> execute(Map<String, dynamic> params) async {
     try {
       final docDir = await getApplicationDocumentsDirectory();
-      final appDir = Directory(p.join(docDir.path, 'NextGenIDE'));
-      final projectsDir = Directory(p.join(appDir.path, 'Projects'));
+      final projectsDir = Directory(p.join(docDir.path, 'Projects'));
 
       if (!await projectsDir.exists()) {
         return 'No projects found (Projects directory does not exist).';
@@ -59,7 +58,9 @@ class ListProjectsTool implements AgentTool {
       final sb = StringBuffer();
       sb.writeln('Found ${projectsList.length} project(s):');
       for (var proj in projectsList) {
-        sb.writeln('- Project ID: ${proj['id']} | Name: "${proj['name']}" | Desc: "${proj['description']}"');
+        sb.writeln(
+          '- Project ID: ${proj['id']} | Name: "${proj['name']}" | Desc: "${proj['description']}"',
+        );
       }
 
       return sb.toString();

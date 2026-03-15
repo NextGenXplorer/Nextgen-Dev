@@ -19,10 +19,7 @@ final router = GoRouter(
   initialLocation: '/',
   navigatorKey: rootNavigatorKey,
   routes: [
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const SplashScreen(),
-    ),
+    GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
     GoRoute(
       path: '/onboarding',
       builder: (context, state) => const OnboardingScreen(),
@@ -41,7 +38,8 @@ final router = GoRouter(
           routes: [
             GoRoute(
               path: ':id',
-              builder: (context, state) => ProjectExplorerScreen(id: state.pathParameters['id']!),
+              builder: (context, state) =>
+                  ProjectExplorerScreen(id: state.pathParameters['id']!),
               routes: [
                 GoRoute(
                   path: 'editor/:path',

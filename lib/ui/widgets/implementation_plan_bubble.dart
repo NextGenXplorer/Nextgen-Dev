@@ -20,11 +20,14 @@ class ImplementationPlanBubble extends StatelessWidget {
     bool inTaskSection = false;
 
     for (var line in lines) {
-      if (line.toLowerCase().contains('## tasks') || line.toLowerCase().contains('# tasks')) {
+      if (line.toLowerCase().contains('## tasks') ||
+          line.toLowerCase().contains('# tasks')) {
         inTaskSection = true;
         continue;
       }
-      if (inTaskSection && (line.startsWith('#') || line.trim().isEmpty) && tasks.isNotEmpty) {
+      if (inTaskSection &&
+          (line.startsWith('#') || line.trim().isEmpty) &&
+          tasks.isNotEmpty) {
         // Break out if we hit another header after tasks
         if (line.startsWith('##') || line.startsWith('#')) break;
       }
@@ -36,11 +39,11 @@ class ImplementationPlanBubble extends StatelessWidget {
           final title = taskMatch.group(2)!.trim();
           tasks.add({'title': title, 'isDone': isDone});
         } else if (line.trim().startsWith('- ')) {
-           // Fallback for simple bullet points in task section
-           final title = line.trim().substring(2).trim();
-           if (title.isNotEmpty) {
-             tasks.add({'title': title, 'isDone': false});
-           }
+          // Fallback for simple bullet points in task section
+          final title = line.trim().substring(2).trim();
+          if (title.isNotEmpty) {
+            tasks.add({'title': title, 'isDone': false});
+          }
         }
       }
     }
@@ -61,14 +64,14 @@ class ImplementationPlanBubble extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppThemes.surfaceDark,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppThemes.accentBlue.withAlpha(50), width: 1.5),
+        border: Border.all(
+          color: AppThemes.accentCyan.withAlpha(50),
+          width: 1.5,
+        ),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            AppThemes.surfaceCard,
-            AppThemes.surfaceDark,
-          ],
+          colors: [AppThemes.surfaceCard, AppThemes.surfaceDark],
         ),
         boxShadow: [
           BoxShadow(
@@ -77,7 +80,7 @@ class ImplementationPlanBubble extends StatelessWidget {
             offset: const Offset(0, 8),
           ),
           BoxShadow(
-            color: AppThemes.accentBlue.withAlpha(20),
+            color: AppThemes.accentCyan.withAlpha(20),
             blurRadius: 25,
             spreadRadius: 1,
             offset: const Offset(0, 4),
@@ -89,7 +92,11 @@ class ImplementationPlanBubble extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.architecture_outlined, color: AppThemes.accentBlue, size: 20),
+              const Icon(
+                Icons.architecture_outlined,
+                color: AppThemes.accentCyan,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               const Text(
                 'Implementation Plan',
@@ -109,7 +116,11 @@ class ImplementationPlanBubble extends StatelessWidget {
                 ),
                 child: const Text(
                   'Pending Approval',
-                  style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Colors.orange,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -121,42 +132,68 @@ class ImplementationPlanBubble extends StatelessWidget {
             data: cleanContent,
             selectable: true,
             styleSheet: MarkdownStyleSheet(
-              p: const TextStyle(color: AppThemes.textSecondary, fontSize: 14, height: 1.5),
-              h2: const TextStyle(color: AppThemes.textPrimary, fontSize: 15, fontWeight: FontWeight.w600),
-              h3: const TextStyle(color: AppThemes.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
-              listBullet: const TextStyle(color: AppThemes.accentBlue),
+              p: const TextStyle(
+                color: AppThemes.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
+              h2: const TextStyle(
+                color: AppThemes.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+              h3: const TextStyle(
+                color: AppThemes.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              listBullet: const TextStyle(color: AppThemes.accentCyan),
             ),
           ),
           if (tasks.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Text(
               'Tasks',
-              style: TextStyle(color: AppThemes.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: AppThemes.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
-            ...tasks.map((task) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                  Icon(
-                    task['isDone'] ? Icons.check_circle : Icons.circle_outlined,
-                    size: 16,
-                    color: task['isDone'] ? Colors.green : AppThemes.textSecondary,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      task['title'],
-                      style: TextStyle(
-                        color: task['isDone'] ? AppThemes.textSecondary : AppThemes.textPrimary,
-                        fontSize: 13,
-                        decoration: task['isDone'] ? TextDecoration.lineThrough : null,
+            ...tasks.map(
+              (task) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    Icon(
+                      task['isDone']
+                          ? Icons.check_circle
+                          : Icons.circle_outlined,
+                      size: 16,
+                      color: task['isDone']
+                          ? Colors.green
+                          : AppThemes.textSecondary,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        task['title'],
+                        style: TextStyle(
+                          color: task['isDone']
+                              ? AppThemes.textSecondary
+                              : AppThemes.textPrimary,
+                          fontSize: 13,
+                          decoration: task['isDone']
+                              ? TextDecoration.lineThrough
+                              : null,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            )),
+            ),
           ],
           const SizedBox(height: 20),
           Row(
@@ -164,14 +201,23 @@ class ImplementationPlanBubble extends StatelessWidget {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: onEdit,
-                  icon: const Icon(Icons.edit_note, color: AppThemes.accentBlue),
+                  icon: const Icon(
+                    Icons.edit_note,
+                    color: AppThemes.accentCyan,
+                  ),
                   label: const Text(
                     'Edit',
-                    style: TextStyle(color: AppThemes.accentBlue, fontSize: 15, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: AppThemes.accentCyan,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    side: BorderSide(color: AppThemes.accentBlue.withAlpha(100)),
+                    side: BorderSide(
+                      color: AppThemes.accentCyan.withAlpha(100),
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -185,11 +231,15 @@ class ImplementationPlanBubble extends StatelessWidget {
                   icon: const Icon(Icons.rocket_launch, color: Colors.white),
                   label: const Text(
                     'Proceed',
-                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    backgroundColor: AppThemes.accentBlue,
+                    backgroundColor: AppThemes.accentCyan,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -204,4 +254,3 @@ class ImplementationPlanBubble extends StatelessWidget {
     );
   }
 }
-

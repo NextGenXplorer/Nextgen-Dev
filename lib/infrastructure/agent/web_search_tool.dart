@@ -13,7 +13,8 @@ class WebSearchTool implements AgentTool {
   String get uiIcon => 'search';
 
   @override
-  String get description => '''web_search: Search the internet for current information.
+  String get description =>
+      '''web_search: Search the internet for current information.
 Parameters: {"query": "<search query string>"}
 Use this when you need current information, facts, news, or any data you don't know.''';
 
@@ -27,7 +28,8 @@ Use this when you need current information, facts, news, or any data you don't k
       final uri = Uri.parse(
         'https://api.duckduckgo.com/?q=${Uri.encodeComponent(query)}&format=json&no_html=1&skip_disambig=1',
       );
-      final response = await http.get(uri, headers: {'Accept': 'application/json'})
+      final response = await http
+          .get(uri, headers: {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) {

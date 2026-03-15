@@ -7,9 +7,5 @@ class ChatMessage {
   final String content;
   final List<Uint8List>? images;
 
-  const ChatMessage({
-    required this.role,
-    required this.content,
-    this.images,
-  });
+  const ChatMessage({required this.role, required this.content, this.images});
 }

@@ -1,5 +1,5 @@
 /// Represents one visible step the agent took (shown inline in chat)
-enum AgentStepType { toolCall, toolResult, text, finalAnswer }
+enum AgentStepType { toolCall, toolResult, text, finalAnswer, taskUpdate, busEvent }
 
 class AgentStep {
   final AgentStepType type;

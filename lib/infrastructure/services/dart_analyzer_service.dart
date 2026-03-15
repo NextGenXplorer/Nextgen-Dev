@@ -24,18 +24,17 @@ class DartAnalyzerService {
       // The --machine output is a series of JSON objects separated by newlines or a single JSON string
       final List<String> errorLines = [];
       const delimiter = 'INFO|';
-      
+
       // Basic parse of machine output which looks like:
       // INFO|LINT|CODE|path/to/file.dart|line|col|length|Message
       final lines = output.split('\n');
       for (final line in lines) {
-         if (line.isNotEmpty) {
-             errorLines.add(line);
-         }
+        if (line.isNotEmpty) {
+          errorLines.add(line);
+        }
       }
-      
-      return 'Analysis Results:\n${errorLines.join('\n')}';
 
+      return 'Analysis Results:\n${errorLines.join('\n')}';
     } catch (e) {
       return 'Failed to run dart analyzer: $e';
     }

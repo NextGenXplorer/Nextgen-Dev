@@ -7,11 +7,7 @@ void main() {
   testWidgets('Onboarding screen smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(
-          home: OnboardingScreen(),
-        ),
-      ),
+      const ProviderScope(child: MaterialApp(home: OnboardingScreen())),
     );
 
     // Verify that onboarding text is present
@@ -21,7 +17,7 @@ void main() {
     // Verify that 'Local' is the first option in the dropdown essentially
     // We can't easily check dropdown items without opening it, but we can check if the button is there.
     expect(find.byType(DropdownButtonFormField<String>), findsOneWidget);
-    
+
     // Check for the "Start Private Session" button
     expect(find.text('Start Private Session'), findsOneWidget);
   });

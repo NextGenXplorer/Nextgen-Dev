@@ -41,7 +41,6 @@ class DevServerService {
         _logController.add('Server exited with code $code');
         _activeProcess = null;
       });
-
     } catch (e) {
       _logController.add('Failed to start server: $e');
       _activeProcess = null;

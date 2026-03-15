@@ -3,8 +3,9 @@ import 'dart:io';
 
 class LogMonitorService {
   Process? _logcatProcess;
-  final StreamController<String> _errorStreamController = StreamController<String>.broadcast();
-  
+  final StreamController<String> _errorStreamController =
+      StreamController<String>.broadcast();
+
   Stream<String> get errorStream => _errorStreamController.stream;
 
   Future<void> startMonitoring() async {
@@ -16,11 +17,10 @@ class LogMonitorService {
 
       // Start logcat, filtering for Errors and Fatal exceptions
       // *:E means all tags, Error level and above
-      _logcatProcess = await Process.start(
-        'adb', 
-        ['logcat', '*:E'],
-        runInShell: true
-      );
+      _logcatProcess = await Process.start('adb', [
+        'logcat',
+        '*:E',
+      ], runInShell: true);
 
       _logcatProcess!.stdout.transform(SystemEncoding().decoder).listen((data) {
         _processLogChunk(data);
@@ -30,7 +30,6 @@ class LogMonitorService {
         // adb errors usually go to stderr
         print('LogMonitorService ADB Error: \$data');
       });
-
     } catch (e) {
       print('Failed to start LogMonitorService: \$e');
     }
@@ -46,13 +45,12 @@ class LogMonitorService {
     // We can refine this regex based on standard Flutter/Android crash signatures.
     final lines = chunk.split('\\n');
     for (final line in lines) {
-      if (line.contains('Exception') || 
-          line.contains('Error') || 
+      if (line.contains('Exception') ||
+          line.contains('Error') ||
           line.contains('FATAL EXCEPTION') ||
           line.contains('FlutterError')) {
-          
         if (line.trim().isNotEmpty) {
-           _errorStreamController.add(line.trim());
+          _errorStreamController.add(line.trim());
         }
       }
     }

@@ -109,9 +109,17 @@ class _ModelPickerSheetState extends ConsumerState<ModelPickerSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: AppThemes.surfaceDark,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: AppThemes.bgDark.withAlpha(240),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border.all(color: AppThemes.accentCyan.withAlpha(30), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: AppThemes.accentCyan.withAlpha(10),
+            blurRadius: 30,
+            offset: const Offset(0, -5),
+          ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -141,7 +149,7 @@ class _ModelPickerSheetState extends ConsumerState<ModelPickerSheet> {
               ],
             ),
           ),
-          const Divider(height: 1, color: AppThemes.dividerColor),
+          Divider(height: 1, color: AppThemes.dividerColor.withAlpha(50)),
           ConstrainedBox(
             constraints: BoxConstraints(
               maxHeight: MediaQuery.of(context).size.height * 0.65,
@@ -212,7 +220,11 @@ class _ModelPickerSheetState extends ConsumerState<ModelPickerSheet> {
               ),
             ),
             if (isSelected)
-              const Icon(Icons.check_circle, color: AppThemes.accentBlue, size: 20)
+              const Icon(
+                Icons.check_circle,
+                color: AppThemes.accentCyan,
+                size: 20,
+              )
             else if (!hasKey)
               GestureDetector(
                 onTap: () {
@@ -220,17 +232,20 @@ class _ModelPickerSheetState extends ConsumerState<ModelPickerSheet> {
                   Navigator.of(context).pushNamed('/settings');
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    border: Border.all(color: AppThemes.dividerColor),
+                    border: Border.all(
+                      color: AppThemes.accentCyan.withAlpha(50),
+                    ),
                     borderRadius: BorderRadius.circular(6),
+                    color: AppThemes.accentCyan.withAlpha(10),
                   ),
                   child: const Text(
                     'Add Key',
-                    style: TextStyle(
-                      color: AppThemes.textSecondary,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: AppThemes.accentCyan, fontSize: 12),
                   ),
                 ),
               )
@@ -241,14 +256,23 @@ class _ModelPickerSheetState extends ConsumerState<ModelPickerSheet> {
                   Navigator.of(context).pop();
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    border: Border.all(color: AppThemes.dividerColor),
+                    border: Border.all(
+                      color: AppThemes.dividerColor.withAlpha(50),
+                    ),
                     borderRadius: BorderRadius.circular(6),
+                    color: AppThemes.surfaceCard.withAlpha(50),
                   ),
                   child: const Text(
                     'Select',
-                    style: TextStyle(color: AppThemes.textSecondary, fontSize: 12),
+                    style: TextStyle(
+                      color: AppThemes.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ),

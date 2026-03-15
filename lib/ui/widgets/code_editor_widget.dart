@@ -17,14 +17,12 @@ class _CodeEditorWidgetState extends State<CodeEditorWidget> {
   @override
   void initState() {
     super.initState();
-    _controller = CodeLineEditingController.fromText(
-'''
+    _controller = CodeLineEditingController.fromText('''
 // Example dart file
 void main() {
   print("Hello from \${widget.filePath}");
 }
-'''
-    );
+''');
   }
 
   @override
@@ -55,10 +53,7 @@ void main() {
           Expanded(
             child: CodeEditor(
               controller: _controller,
-              style: CodeEditorStyle(
-                fontSize: 14,
-                fontFamily: 'monospace',
-              ),
+              style: CodeEditorStyle(fontSize: 14, fontFamily: 'monospace'),
               wordWrap: false,
             ),
           ),
@@ -77,7 +72,9 @@ void main() {
           topLeft: Radius.circular(8),
           topRight: Radius.circular(8),
         ),
-        border: isActive ? Border.all(color: AppThemes.dividerColor, width: 1) : null,
+        border: isActive
+            ? Border.all(color: AppThemes.dividerColor, width: 1)
+            : null,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -86,13 +83,17 @@ void main() {
           Text(
             title,
             style: TextStyle(
-              color: isActive ? AppThemes.accentBlue : AppThemes.textSecondary,
+              color: isActive ? AppThemes.accentCyan : AppThemes.textSecondary,
               fontSize: 13,
               fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
           const SizedBox(width: 8),
-          Icon(Icons.close, size: 14, color: isActive ? AppThemes.textPrimary : AppThemes.textSecondary),
+          Icon(
+            Icons.close,
+            size: 14,
+            color: isActive ? AppThemes.textPrimary : AppThemes.textSecondary,
+          ),
         ],
       ),
     );

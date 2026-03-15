@@ -6,8 +6,10 @@ class GoogleGeminiProvider implements AIProvider {
   final String apiKey;
   final GenerativeModel _model;
 
-  GoogleGeminiProvider({required this.apiKey, String modelName = 'gemini-2.5-flash'})
-      : _model = GenerativeModel(model: modelName, apiKey: apiKey);
+  GoogleGeminiProvider({
+    required this.apiKey,
+    String modelName = 'gemini-2.5-flash',
+  }) : _model = GenerativeModel(model: modelName, apiKey: apiKey);
 
   @override
   String get name => 'Google Gemini';
@@ -22,21 +24,28 @@ class GoogleGeminiProvider implements AIProvider {
   @override
   Stream<String> generateStream(List<app_models.ChatMessage> history) {
     final contents = _mapHistory(history);
-    return _model.generateContentStream(contents).map((response) => response.text ?? '');
+    return _model
+        .generateContentStream(contents)
+        .map((response) => response.text ?? '');
   }
 
   List<Content> _mapHistory(List<app_models.ChatMessage> history) {
-    return history.where((msg) => msg.role != app_models.MessageRole.system).map((msg) {
-      final role = msg.role == app_models.MessageRole.user ? 'user' : 'model';
-      final parts = <Part>[TextPart(msg.content)];
-      
-      if (msg.images != null && msg.images!.isNotEmpty) {
-        for (final imageBytes in msg.images!) {
-          // Assume image/png for screenshot tool compatibility
-          parts.add(DataPart('image/png', imageBytes));
-        }
-      }
-      return Content(role, parts);
-    }).toList();
+    return history
+        .where((msg) => msg.role != app_models.MessageRole.system)
+        .map((msg) {
+          final role = msg.role == app_models.MessageRole.user
+              ? 'user'
+              : 'model';
+          final parts = <Part>[TextPart(msg.content)];
+
+          if (msg.images != null && msg.images!.isNotEmpty) {
+            for (final imageBytes in msg.images!) {
+              // Assume image/png for screenshot tool compatibility
+              parts.add(DataPart('image/png', imageBytes));
+            }
+          }
+          return Content(role, parts);
+        })
+        .toList();
   }
 }

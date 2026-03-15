@@ -7,6 +7,14 @@ enum AgentEventType {
   error,
   deployRequested,
   agentStep,
+  planReady,
+  planApproved,
+  planRejected,
+  taskUpdate,
+  agentFinished,
+  terminalCommand,
+  fileRefreshRequested,
+  deployStatusUpdate,
 }
 
 class AgentEvent {

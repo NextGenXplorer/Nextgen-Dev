@@ -26,18 +26,20 @@ class OpenRouterProvider implements AIProvider {
         'model': model,
         'messages': history.map((m) {
           if (m.images != null && m.images!.isNotEmpty) {
-             return {
-               'role': m.role == MessageRole.user ? 'user' : 'assistant',
-               'content': [
-                 {'type': 'text', 'text': m.content},
-                 ...m.images!.map((bytes) => {
-                   'type': 'image_url',
-                   'image_url': {
-                     'url': 'data:image/png;base64,${base64Encode(bytes)}'
-                   }
-                 }),
-               ],
-             };
+            return {
+              'role': m.role == MessageRole.user ? 'user' : 'assistant',
+              'content': [
+                {'type': 'text', 'text': m.content},
+                ...m.images!.map(
+                  (bytes) => {
+                    'type': 'image_url',
+                    'image_url': {
+                      'url': 'data:image/png;base64,${base64Encode(bytes)}',
+                    },
+                  },
+                ),
+              ],
+            };
           }
           return {
             'role': m.role == MessageRole.user ? 'user' : 'assistant',
@@ -57,7 +59,10 @@ class OpenRouterProvider implements AIProvider {
 
   @override
   Stream<String> generateStream(List<ChatMessage> history) async* {
-    final request = http.Request('POST', Uri.parse('https://openrouter.ai/api/v1/chat/completions'));
+    final request = http.Request(
+      'POST',
+      Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+    );
     request.headers.addAll({
       'HTTP-Referer': 'https://mobile_ai_ide.app',
       'X-Title': 'Mobile AI IDE',
@@ -68,10 +73,14 @@ class OpenRouterProvider implements AIProvider {
     request.body = jsonEncode({
       'model': model,
       'stream': true,
-      'messages': history.map((m) => {
-        'role': m.role == MessageRole.user ? 'user' : 'assistant',
-        'content': m.content,
-      }).toList(),
+      'messages': history
+          .map(
+            (m) => {
+              'role': m.role == MessageRole.user ? 'user' : 'assistant',
+              'content': m.content,
+            },
+          )
+          .toList(),
     });
 
     final response = await http.Client().send(request);

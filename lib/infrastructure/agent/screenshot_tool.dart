@@ -20,11 +20,11 @@ class ScreenshotTool implements AgentTool {
   Future<String> execute(Map<String, dynamic> params) async {
     try {
       // Use stdoutEncoding: null to get raw bytes for the PNG image
-      final result = await Process.run(
-        'adb', 
-        ['exec-out', 'screencap', '-p'],
-        stdoutEncoding: null,
-      );
+      final result = await Process.run('adb', [
+        'exec-out',
+        'screencap',
+        '-p',
+      ], stdoutEncoding: null);
 
       if (result.exitCode == 0) {
         final bytes = result.stdout as List<int>;

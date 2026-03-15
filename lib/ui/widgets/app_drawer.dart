@@ -4,17 +4,18 @@ import '../../domain/models/conversation.dart';
 import '../../infrastructure/services/conversation_service.dart';
 import '../../infrastructure/keystore_service.dart';
 import '../themes.dart';
+import 'package:go_router/go_router.dart';
 
 class AppDrawer extends ConsumerStatefulWidget {
   final String? currentConversationId;
-  final void Function(Conversation) onConversationSelected;
-  final VoidCallback onNewChat;
+  final void Function(Conversation)? onConversationSelected;
+  final VoidCallback? onNewChat;
 
   const AppDrawer({
     super.key,
-    required this.currentConversationId,
-    required this.onConversationSelected,
-    required this.onNewChat,
+    this.currentConversationId,
+    this.onConversationSelected,
+    this.onNewChat,
   });
 
   @override
@@ -62,10 +63,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
       child: Container(
         decoration: BoxDecoration(
           border: Border(
-            right: BorderSide(
-              color: Colors.white.withAlpha(10),
-              width: 0.5,
-            ),
+            right: BorderSide(color: Colors.white.withAlpha(10), width: 0.5),
           ),
         ),
         child: SafeArea(
@@ -84,25 +82,45 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: TextField(
                   controller: _searchController,
-                  style: const TextStyle(color: AppThemes.textPrimary, fontSize: 13),
-                  onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+                  style: const TextStyle(
+                    color: AppThemes.textPrimary,
+                    fontSize: 13,
+                  ),
+                  onChanged: (v) =>
+                      setState(() => _searchQuery = v.toLowerCase()),
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search_rounded, color: AppThemes.textSecondary, size: 18),
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      color: AppThemes.textSecondary,
+                      size: 18,
+                    ),
                     hintText: 'Search conversations...',
-                    hintStyle: const TextStyle(color: AppThemes.textSecondary, fontSize: 13),
+                    hintStyle: const TextStyle(
+                      color: AppThemes.textSecondary,
+                      fontSize: 13,
+                    ),
                     filled: true,
                     fillColor: const Color(0xFF161618),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.white.withAlpha(10), width: 0.5),
+                      borderSide: BorderSide(
+                        color: Colors.white.withAlpha(10),
+                        width: 0.5,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.white.withAlpha(10), width: 0.5),
+                      borderSide: BorderSide(
+                        color: Colors.white.withAlpha(10),
+                        width: 0.5,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: AppThemes.accentBlue, width: 1),
+                      borderSide: const BorderSide(
+                        color: AppThemes.accentCyan,
+                        width: 1,
+                      ),
                     ),
                     contentPadding: const EdgeInsets.symmetric(vertical: 10),
                     isDense: true,
@@ -111,9 +129,66 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               ),
               const SizedBox(height: 24),
 
+              // Workspace Header
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 4,
+                ),
+                child: Row(
+                  children: const [
+                    Text(
+                      'WORKSPACE',
+                      style: TextStyle(
+                        color: AppThemes.textSecondary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Workspace Navigation Items
+              _buildWorkspaceNavItem(
+                context,
+                'Projects',
+                Icons.folder_outlined,
+                Icons.folder,
+                '/home/projects',
+              ),
+              _buildWorkspaceNavItem(
+                context,
+                'Command (Chat)',
+                Icons.smart_toy_outlined,
+                Icons.smart_toy,
+                '/home/chat',
+              ),
+              _buildWorkspaceNavItem(
+                context,
+                'Terminal',
+                Icons.terminal_outlined,
+                Icons.terminal,
+                '/home/terminal',
+              ),
+              _buildWorkspaceNavItem(
+                context,
+                'Deploy',
+                Icons.rocket_launch_outlined,
+                Icons.rocket_launch,
+                '/home/deploy',
+              ),
+
+              const SizedBox(height: 24),
+
               // Chat History Header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 4,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -128,23 +203,34 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     ),
                     GestureDetector(
                       onTap: () {
-                        widget.onNewChat();
-                        Navigator.of(context).pop();
+                        Navigator.pop(context); // Close drawer
+                        if (widget.onNewChat != null) {
+                          widget.onNewChat!();
+                        } else {
+                          context.go('/home/chat');
+                        }
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: AppThemes.accentBlue.withAlpha(30),
+                          color: AppThemes.accentCyan.withAlpha(30),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.add_rounded, color: AppThemes.accentBlue, size: 14),
+                            Icon(
+                              Icons.add_rounded,
+                              color: AppThemes.accentCyan,
+                              size: 14,
+                            ),
                             SizedBox(width: 4),
                             Text(
                               'NEW',
                               style: TextStyle(
-                                color: AppThemes.accentBlue,
+                                color: AppThemes.accentCyan,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.5,
@@ -162,22 +248,38 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               // Conversation list
               Expanded(
                 child: conversationsAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator(color: AppThemes.accentBlue)),
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(
+                      color: AppThemes.accentCyan,
+                    ),
+                  ),
                   error: (e, _) => Center(
-                    child: Text('Error: $e', style: const TextStyle(color: AppThemes.textSecondary)),
+                    child: Text(
+                      'Error: $e',
+                      style: const TextStyle(color: AppThemes.textSecondary),
+                    ),
                   ),
                   data: (conversations) {
                     final filtered = _searchQuery.isEmpty
                         ? conversations
                         : conversations
-                            .where((c) => c.title.toLowerCase().contains(_searchQuery))
-                            .toList();
+                              .where(
+                                (c) => c.title.toLowerCase().contains(
+                                  _searchQuery,
+                                ),
+                              )
+                              .toList();
 
                     if (filtered.isEmpty) {
                       return Center(
                         child: Text(
-                          _searchQuery.isEmpty ? 'No conversations yet' : 'No results found',
-                          style: const TextStyle(color: AppThemes.textSecondary, fontSize: 13),
+                          _searchQuery.isEmpty
+                              ? 'No conversations yet'
+                              : 'No results found',
+                          style: const TextStyle(
+                            color: AppThemes.textSecondary,
+                            fontSize: 13,
+                          ),
                         ),
                       );
                     }
@@ -193,14 +295,21 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 child: Divider(height: 1, color: Colors.white.withAlpha(10)),
               ),
               ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 8,
+                ),
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.white.withAlpha(10),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.settings_rounded, color: AppThemes.textPrimary, size: 20),
+                  child: const Icon(
+                    Icons.settings_rounded,
+                    color: AppThemes.textPrimary,
+                    size: 20,
+                  ),
                 ),
                 title: const Text(
                   'Settings',
@@ -233,16 +342,16 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: const LinearGradient(
-                colors: [AppThemes.accentBlue, Color(0xFF6366F1)],
+                colors: [AppThemes.accentCyan, Color(0xFF6366F1)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppThemes.accentBlue.withAlpha(40),
+                  color: AppThemes.accentCyan.withAlpha(40),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
-                )
+                ),
               ],
             ),
             child: Center(
@@ -273,7 +382,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                 const Text(
                   'Premium Member',
                   style: TextStyle(
-                    color: AppThemes.accentBlue,
+                    color: AppThemes.accentCyan,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -287,7 +396,11 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               color: Colors.white.withAlpha(10),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.keyboard_arrow_down_rounded, color: AppThemes.textSecondary, size: 18),
+            child: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: AppThemes.textSecondary,
+              size: 18,
+            ),
           ),
         ],
       ),
@@ -350,10 +463,14 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
-          color: isActive ? AppThemes.accentBlue.withAlpha(30) : Colors.transparent,
+          color: isActive
+              ? AppThemes.accentCyan.withAlpha(30)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isActive ? AppThemes.accentBlue.withAlpha(60) : Colors.transparent,
+            color: isActive
+                ? AppThemes.accentCyan.withAlpha(60)
+                : Colors.transparent,
             width: 0.5,
           ),
         ),
@@ -361,7 +478,9 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
           contentPadding: const EdgeInsets.symmetric(horizontal: 14),
           leading: Icon(
             Icons.chat_bubble_rounded,
-            color: isActive ? AppThemes.accentBlue : AppThemes.textSecondary.withAlpha(150),
+            color: isActive
+                ? AppThemes.accentCyan
+                : AppThemes.textSecondary.withAlpha(150),
             size: 16,
           ),
           title: Text(
@@ -369,13 +488,78 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: isActive ? AppThemes.textPrimary : AppThemes.textPrimary.withAlpha(200),
+              color: isActive
+                  ? AppThemes.textPrimary
+                  : AppThemes.textPrimary.withAlpha(200),
               fontSize: 13,
               fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
           onTap: () {
-            widget.onConversationSelected(c);
+            if (widget.onConversationSelected != null) {
+              widget.onConversationSelected!(c);
+            } else {
+              context.go('/home/chat');
+            }
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWorkspaceNavItem(
+    BuildContext context,
+    String label,
+    IconData icon,
+    IconData activeIcon,
+    String route,
+  ) {
+    // Determine active state from current path
+    final location = GoRouterState.of(context).uri.path;
+    final isActive = location.startsWith(route);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: isActive
+              ? AppThemes.accentCyan.withAlpha(30)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isActive
+                ? AppThemes.accentCyan.withAlpha(60)
+                : Colors.transparent,
+            width: 0.5,
+          ),
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+          leading: Icon(
+            isActive ? activeIcon : icon,
+            color: isActive
+                ? AppThemes.accentCyan
+                : AppThemes.textSecondary.withAlpha(150),
+            size: 20,
+          ),
+          title: Text(
+            label,
+            style: TextStyle(
+              color: isActive
+                  ? AppThemes.textPrimary
+                  : AppThemes.textPrimary.withAlpha(200),
+              fontSize: 14,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+          onTap: () {
+            if (!isActive) {
+              context.go(route);
+            }
             if (Navigator.of(context).canPop()) {
               Navigator.of(context).pop();
             }

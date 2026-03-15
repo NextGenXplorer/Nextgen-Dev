@@ -32,17 +32,14 @@ class Conversation {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'provider': provider,
-        'createdAt': createdAt.toIso8601String(),
-        'messages': messages
-            .map((m) => {
-                  'role': m.role.name,
-                  'content': m.content,
-                })
-            .toList(),
-      };
+    'id': id,
+    'title': title,
+    'provider': provider,
+    'createdAt': createdAt.toIso8601String(),
+    'messages': messages
+        .map((m) => {'role': m.role.name, 'content': m.content})
+        .toList(),
+  };
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
     return Conversation(
@@ -51,13 +48,15 @@ class Conversation {
       provider: json['provider'] as String? ?? 'gemini',
       createdAt: DateTime.parse(json['createdAt'] as String),
       messages: (json['messages'] as List<dynamic>)
-          .map((m) => ChatMessage(
-                role: MessageRole.values.firstWhere(
-                  (r) => r.name == m['role'],
-                  orElse: () => MessageRole.user,
-                ),
-                content: m['content'] as String,
-              ))
+          .map(
+            (m) => ChatMessage(
+              role: MessageRole.values.firstWhere(
+                (r) => r.name == m['role'],
+                orElse: () => MessageRole.user,
+              ),
+              content: m['content'] as String,
+            ),
+          )
           .toList(),
     );
   }

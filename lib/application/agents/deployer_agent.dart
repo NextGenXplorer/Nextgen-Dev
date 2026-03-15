@@ -20,26 +20,31 @@ class DeployerAgent extends Agent {
   String get name => 'DeployerAgent';
 
   @override
-  String get description => 'Handles Git commits, pushes, and Vercel deployments.';
+  String get description =>
+      'Handles Git commits, pushes, and Vercel deployments.';
 
   @override
   bool canHandle(AgentEvent event) {
-    return event.targetAgent == name || event.type == AgentEventType.deployRequested;
+    return event.targetAgent == name ||
+        event.type == AgentEventType.deployRequested;
   }
 
   @override
   Future<void> handleEvent(AgentEvent event) async {
-    bus.publish(AgentEvent(
-      sourceAgent: name,
-      targetAgent: 'System',
-      type: AgentEventType.message,
-      payload: 'DeployerAgent analyzing deployment request...',
-    ));
+    bus.publish(
+      AgentEvent(
+        sourceAgent: name,
+        targetAgent: 'System',
+        type: AgentEventType.message,
+        payload: 'DeployerAgent analyzing deployment request...',
+      ),
+    );
 
     try {
       final requestDetails = event.payload.toString();
 
-      final prompt = '''
+      final prompt =
+          '''
 You are a DevOps Expert. Analyze this deployment request.
 Request: $requestDetails
 
@@ -50,66 +55,81 @@ Return only the commit message.
       final history = [ChatMessage(role: MessageRole.user, content: prompt)];
       final commitMessage = (await aiProvider.generate(history)).trim();
 
-      bus.publish(AgentEvent(
-        sourceAgent: name,
-        targetAgent: 'System',
-        type: AgentEventType.message,
-        payload: 'Generated commit message: $commitMessage',
-      ));
+      bus.publish(
+        AgentEvent(
+          sourceAgent: name,
+          targetAgent: 'System',
+          type: AgentEventType.message,
+          payload: 'Generated commit message: $commitMessage',
+        ),
+      );
 
       // Execute Git Operations
-      bus.publish(AgentEvent(
-        sourceAgent: name,
-        targetAgent: 'System',
-        type: AgentEventType.message,
-        payload: 'Running git add . && git commit...',
-      ));
-      
+      bus.publish(
+        AgentEvent(
+          sourceAgent: name,
+          targetAgent: 'System',
+          type: AgentEventType.message,
+          payload: 'Running git add . && git commit...',
+        ),
+      );
+
       try {
         await gitService.addAll();
         await gitService.commit(commitMessage);
       } catch (gitErr) {
         // Continue even if nothing to commit
-        bus.publish(AgentEvent(
+        bus.publish(
+          AgentEvent(
+            sourceAgent: name,
+            targetAgent: 'System',
+            type: AgentEventType.message,
+            payload:
+                'Git logic non-critical error (e.g., nothing to commit): $gitErr',
+          ),
+        );
+      }
+
+      bus.publish(
+        AgentEvent(
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.message,
-          payload: 'Git logic non-critical error (e.g., nothing to commit): $gitErr',
-        ));
-      }
-
-      bus.publish(AgentEvent(
-        sourceAgent: name,
-        targetAgent: 'System',
-        type: AgentEventType.message,
-        payload: 'Preparing Vercel deployment...',
-      ));
+          payload: 'Preparing Vercel deployment...',
+        ),
+      );
 
       // In a real mobile app using PRoot, we would bridge "vercel --prod" shell command here.
       // For this sprint implementation, we mock the final process wrapper and announce success.
       await Future.delayed(const Duration(seconds: 2));
 
-      bus.publish(AgentEvent(
-        sourceAgent: name,
-        targetAgent: 'User',
-        type: AgentEventType.message,
-        payload: 'Deployment successful!\\nLogs: Committed with message "$commitMessage" and pushed via Vercel CLI.',
-      ));
+      bus.publish(
+        AgentEvent(
+          sourceAgent: name,
+          targetAgent: 'User',
+          type: AgentEventType.message,
+          payload:
+              'Deployment successful!\\nLogs: Committed with message "$commitMessage" and pushed via Vercel CLI.',
+        ),
+      );
 
-      bus.publish(AgentEvent(
-        sourceAgent: name,
-        targetAgent: 'System',
-        type: AgentEventType.taskCompleted,
-        payload: 'Deployment phase complete.',
-      ));
-
+      bus.publish(
+        AgentEvent(
+          sourceAgent: name,
+          targetAgent: 'System',
+          type: AgentEventType.taskCompleted,
+          payload: 'Deployment phase complete.',
+        ),
+      );
     } catch (e) {
-      bus.publish(AgentEvent(
-        sourceAgent: name,
-        targetAgent: 'System',
-        type: AgentEventType.taskFailed,
-        payload: 'Deployment failed: $e',
-      ));
+      bus.publish(
+        AgentEvent(
+          sourceAgent: name,
+          targetAgent: 'System',
+          type: AgentEventType.taskFailed,
+          payload: 'Deployment failed: $e',
+        ),
+      );
     }
   }
 }

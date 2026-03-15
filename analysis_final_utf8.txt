@@ -1,0 +1,46 @@
+﻿Analyzing mobile_ai_ide...                                      
+
+warning - Unused import: 'dart:convert' - lib\application\agent\tools\artifact_tools.dart:1:8 - unused_import
+warning - Unused import: 'dart:io' - lib\application\agent\tools\artifact_tools.dart:2:8 - unused_import
+warning - Unused import: 'dart:io' - lib\application\agents\scaffolder_agent.dart:1:8 - unused_import
+warning - Unused import: 'package:flutter/foundation.dart' - lib\application\agents\scaffolder_agent.dart:2:8 - unused_import
+   info - Statements in an if should be enclosed in a block - lib\application\providers\ai_service_provider.dart:25:9 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\application\providers\ai_service_provider.dart:33:9 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\application\providers\ai_service_provider.dart:39:9 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\application\providers\ai_service_provider.dart:46:9 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\application\providers\ai_service_provider.dart:61:9 - curly_braces_in_flow_control_structures
+warning - Unused import: 'package:flutter/foundation.dart' - lib\domain\agent\agent_tool.dart:1:8 - unused_import
+warning - The value of the local variable 'lineCountTotal' isn't used - lib\infrastructure\agent\get_project_context_tool.dart:51:11 - unused_local_variable
+   info - Unnecessary use of double quotes - lib\infrastructure\agent\get_project_context_tool.dart:75:48 - prefer_single_quotes
+   info - Unnecessary use of double quotes - lib\infrastructure\agent\get_project_context_tool.dart:75:57 - prefer_single_quotes
+   info - Unnecessary use of double quotes - lib\infrastructure\agent\get_project_context_tool.dart:84:27 - prefer_single_quotes
+warning - The value of the local variable 'docDir' isn't used - lib\infrastructure\agent\read_file_tool.dart:32:15 - unused_local_variable
+warning - The value of the local variable 'content' isn't used - lib\infrastructure\agent\read_file_tool.dart:40:13 - unused_local_variable
+warning - Unused import: 'dart:convert' - lib\infrastructure\memory\vector_memory_service.dart:1:8 - unused_import
+warning - The value of the local variable 'queryVector' isn't used - lib\infrastructure\memory\vector_memory_service.dart:53:11 - unused_local_variable
+warning - Unused import: 'dart:convert' - lib\infrastructure\services\dart_analyzer_service.dart:2:8 - unused_import
+warning - The value of the local variable 'delimiter' isn't used - lib\infrastructure\services\dart_analyzer_service.dart:26:13 - unused_local_variable
+   info - Don't invoke 'print' in production code - lib\infrastructure\services\log_monitor_service.dart:31:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\infrastructure\services\log_monitor_service.dart:34:7 - avoid_print
+   info - The import of 'dart:typed_data' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/foundation.dart' - lib\infrastructure\services\process_bridge.dart:3:8 - unnecessary_import
+   info - Don't invoke 'print' in production code - lib\infrastructure\services\project_service.dart:41:7 - avoid_print
+   info - Parameter 'key' could be a super parameter - lib\ui\chat\chat_screen.dart:6:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\chat\chat_screen.dart:108:35 - deprecated_member_use
+warning - The declaration '_suggestions' isn't referenced - lib\ui\screens\chat_screen.dart:42:7 - unused_element
+warning - The value of the local variable 'oldStatus' isn't used - lib\ui\screens\chat_screen.dart:151:13 - unused_local_variable
+   info - 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre - lib\ui\screens\onboarding_screen.dart:103:17 - deprecated_member_use
+   info - Statements in an if should be enclosed in a block - lib\ui\screens\project_explorer_screen.dart:295:7 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\ui\screens\project_explorer_screen.dart:306:7 - curly_braces_in_flow_control_structures
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\themes.dart:88:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\widgets\agent_completion_bubble.dart:25:60 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\widgets\agent_completion_bubble.dart:26:62 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\widgets\agent_completion_bubble.dart:33:56 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\widgets\agent_completion_bubble.dart:37:33 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\widgets\agent_completion_bubble.dart:51:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\widgets\agent_completion_bubble.dart:131:24 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\widgets\agent_completion_bubble.dart:133:43 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\widgets\agent_task_progress_bubble.dart:16:70 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\widgets\agent_task_progress_bubble.dart:19:63 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\ui\widgets\agent_task_progress_bubble.dart:49:74 - deprecated_member_use
+   info - The import of 'package:flutter/services.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' - lib\ui\widgets\code_element_builder.dart:2:8 - unnecessary_import
+

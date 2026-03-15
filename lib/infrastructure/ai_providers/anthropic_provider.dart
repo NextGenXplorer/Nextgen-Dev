@@ -7,7 +7,10 @@ class AnthropicProvider implements AIProvider {
   final String apiKey;
   final String model;
 
-  AnthropicProvider({required this.apiKey, this.model = 'claude-3-5-haiku-20241022'});
+  AnthropicProvider({
+    required this.apiKey,
+    this.model = 'claude-3-5-haiku-20241022',
+  });
 
   @override
   String get name => 'Anthropic ($model)';
@@ -26,21 +29,22 @@ class AnthropicProvider implements AIProvider {
         'max_tokens': 4096,
         'messages': history.map((m) {
           if (m.images != null && m.images!.isNotEmpty) {
-             return {
-               'role': m.role == MessageRole.user ? 'user' : 'assistant',
-               'content': [
-                 ...m.images!.map((bytes) => {
-                   'type': 'image',
-                   'source': {
-                     'type': 'base64',
-                     'media_type': 'image/png',
-                     'data': base64Encode(bytes),
-                   }
-                 }),
-                 {'type': 'text', 'text': m.content},
-                 
-               ],
-             };
+            return {
+              'role': m.role == MessageRole.user ? 'user' : 'assistant',
+              'content': [
+                ...m.images!.map(
+                  (bytes) => {
+                    'type': 'image',
+                    'source': {
+                      'type': 'base64',
+                      'media_type': 'image/png',
+                      'data': base64Encode(bytes),
+                    },
+                  },
+                ),
+                {'type': 'text', 'text': m.content},
+              ],
+            };
           }
           return {
             'role': m.role == MessageRole.user ? 'user' : 'assistant',
@@ -60,7 +64,10 @@ class AnthropicProvider implements AIProvider {
 
   @override
   Stream<String> generateStream(List<ChatMessage> history) async* {
-    final request = http.Request('POST', Uri.parse('https://api.anthropic.com/v1/messages'));
+    final request = http.Request(
+      'POST',
+      Uri.parse('https://api.anthropic.com/v1/messages'),
+    );
     request.headers.addAll({
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
@@ -71,10 +78,14 @@ class AnthropicProvider implements AIProvider {
       'model': model,
       'max_tokens': 4096,
       'stream': true,
-      'messages': history.map((m) => {
-        'role': m.role == MessageRole.user ? 'user' : 'assistant',
-        'content': m.content,
-      }).toList(),
+      'messages': history
+          .map(
+            (m) => {
+              'role': m.role == MessageRole.user ? 'user' : 'assistant',
+              'content': m.content,
+            },
+          )
+          .toList(),
     });
 
     final response = await http.Client().send(request);

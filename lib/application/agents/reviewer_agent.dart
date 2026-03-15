@@ -14,34 +14,41 @@ class ReviewerAgent extends Agent {
   String get name => 'ReviewerAgent';
 
   @override
-  String get description => 'A senior code reviewer that analyzes diffs and provides feedback.';
+  String get description =>
+      'A senior code reviewer that analyzes diffs and provides feedback.';
 
   @override
   bool canHandle(AgentEvent event) {
-    return event.targetAgent == name && event.type == AgentEventType.taskAssigned;
+    return event.targetAgent == name &&
+        event.type == AgentEventType.taskAssigned;
   }
 
   @override
   Future<void> handleEvent(AgentEvent event) async {
-    bus.publish(AgentEvent(
-      sourceAgent: name,
-      targetAgent: 'System',
-      type: AgentEventType.message,
-      payload: 'ReviewerAgent is analyzing the code...',
-    ));
+    bus.publish(
+      AgentEvent(
+        sourceAgent: name,
+        targetAgent: 'System',
+        type: AgentEventType.message,
+        payload: 'ReviewerAgent is analyzing the code...',
+      ),
+    );
 
     try {
       final payload = event.payload as Map<String, dynamic>;
       final codeLog = payload['codeLog'] ?? '';
       final originalTask = payload['originalTask'];
 
-      final prompt = '''
-You are a senior code reviewer. Analyze the following implementation logs for the task: $originalTask
+      final prompt =
+          '''
+You are an ELITE senior code reviewer. Analyze the following implementation logs for the task: $originalTask
 
 Rules:
-- Reject commits with obvious flaws or missing error handling based on the log.
-- Provide specific feedback.
-- If approved, output exclusively 'LGTM'.
+- Reject commits with obvious flaws, missing error handling, or generic UI implementations.
+- You MUST look for explicit evidence in the log that the CoderAgent or DebuggerAgent ran a test or build command (like `flutter analyze` or `npm run build`) AND that it succeeded.
+- If there is NO evidence of a successful test/build run, you MUST REJECT it.
+- Provide specific feedback on what needs to be fixed.
+- If the code is perfect AND tests/builds pass, output exclusively 'LGTM'.
 
 Implementation Context:
 $codeLog
@@ -50,39 +57,61 @@ $codeLog
       final history = [ChatMessage(role: MessageRole.user, content: prompt)];
       final review = (await aiProvider.generate(history)).trim();
 
-      bus.publish(AgentEvent(
-        sourceAgent: name,
-        targetAgent: 'User',
-        type: AgentEventType.message,
-        payload: 'Code Review Result:\\n$review',
-      ));
+      bus.publish(
+        AgentEvent(
+          sourceAgent: name,
+          targetAgent: 'User',
+          type: AgentEventType.message,
+          payload: 'Code Review Result:\\n$review',
+        ),
+      );
 
       if (review == 'LGTM') {
-        bus.publish(AgentEvent(
+        bus.publish(
+          AgentEvent(
+            sourceAgent: name,
+            targetAgent: 'User',
+            type: AgentEventType.message,
+            payload: 'Agent finished all tasks! You can now test it.',
+          ),
+        );
+
+        bus.publish(
+          AgentEvent(
+            sourceAgent: name,
+            targetAgent: 'ServeAgent',
+            type: AgentEventType.taskAssigned,
+            payload: 'start',
+          ),
+        );
+
+        bus.publish(
+          AgentEvent(
+            sourceAgent: name,
+            targetAgent: 'System',
+            type: AgentEventType.taskCompleted,
+            payload: 'Review passed. LGTM. Auto-starting dev server.',
+          ),
+        );
+      } else {
+        bus.publish(
+          AgentEvent(
+            sourceAgent: name,
+            targetAgent: 'CoderAgent',
+            type: AgentEventType.taskFailed,
+            payload: 'Code review failed. Feedback:\\n$review',
+          ),
+        );
+      }
+    } catch (e) {
+      bus.publish(
+        AgentEvent(
           sourceAgent: name,
           targetAgent: 'System',
-          type: AgentEventType.taskCompleted,
-          payload: 'Review passed. LGTM.',
-        ));
-        
-        // Example: Hand off to deployer automatically or wait for user action
-        // For this sprint implementation, we'll just announce completion.
-      } else {
-        bus.publish(AgentEvent(
-          sourceAgent: name,
-          targetAgent: 'CoderAgent',
           type: AgentEventType.taskFailed,
-          payload: 'Code review failed. Feedback:\\n$review',
-        ));
-      }
-
-    } catch (e) {
-      bus.publish(AgentEvent(
-        sourceAgent: name,
-        targetAgent: 'System',
-        type: AgentEventType.taskFailed,
-        payload: 'Failed to complete review: $e',
-      ));
+          payload: 'Failed to complete review: $e',
+        ),
+      );
     }
   }
 }

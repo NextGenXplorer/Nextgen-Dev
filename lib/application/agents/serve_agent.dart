@@ -17,12 +17,14 @@ class ServeAgent extends Agent {
   }) {
     // Pipe server logs to the agent bus
     serverService.logStream.listen((log) {
-      bus.publish(AgentEvent(
-        sourceAgent: name,
-        targetAgent: 'Terminal',
-        type: AgentEventType.message,
-        payload: '[Server Log] $log',
-      ));
+      bus.publish(
+        AgentEvent(
+          sourceAgent: name,
+          targetAgent: 'Terminal',
+          type: AgentEventType.message,
+          payload: '[Server Log] $log',
+        ),
+      );
     });
   }
 
@@ -34,34 +36,41 @@ class ServeAgent extends Agent {
 
   @override
   bool canHandle(AgentEvent event) {
-    return event.targetAgent == name && (event.type == AgentEventType.taskAssigned || event.type == AgentEventType.message);
+    return event.targetAgent == name &&
+        (event.type == AgentEventType.taskAssigned ||
+            event.type == AgentEventType.message);
   }
 
   @override
   Future<void> handleEvent(AgentEvent event) async {
     final payloadStr = event.payload.toString().toLowerCase();
-    
+
     // Simple intent parsing for the Serve agent wrapper
     if (payloadStr.contains('stop') || payloadStr.contains('kill')) {
       await serverService.stopServer();
-      bus.publish(AgentEvent(
-        sourceAgent: name,
-        targetAgent: 'System',
-        type: AgentEventType.taskCompleted,
-        payload: 'Server stopped successfully.',
-      ));
+      bus.publish(
+        AgentEvent(
+          sourceAgent: name,
+          targetAgent: 'System',
+          type: AgentEventType.taskCompleted,
+          payload: 'Server stopped successfully.',
+        ),
+      );
       return;
     }
 
-    bus.publish(AgentEvent(
-      sourceAgent: name,
-      targetAgent: 'System',
-      type: AgentEventType.message,
-      payload: 'ServeAgent interpreting server start request...',
-    ));
+    bus.publish(
+      AgentEvent(
+        sourceAgent: name,
+        targetAgent: 'System',
+        type: AgentEventType.message,
+        payload: 'ServeAgent interpreting server start request...',
+      ),
+    );
 
     try {
-      final prompt = '''
+      final prompt =
+          '''
 You are a DevOps assistant. The user wants to start a development server.
 Request: ${event.payload}
 
@@ -77,29 +86,34 @@ Example: npm|run dev
       final command = parts[0].trim();
       final args = parts.length > 1 ? parts[1].trim().split(' ') : <String>[];
 
-      bus.publish(AgentEvent(
-        sourceAgent: name,
-        targetAgent: 'System',
-        type: AgentEventType.message,
-        payload: 'Starting server command: $command ${args.join(' ')}',
-      ));
+      bus.publish(
+        AgentEvent(
+          sourceAgent: name,
+          targetAgent: 'System',
+          type: AgentEventType.message,
+          payload: 'Starting server command: $command ${args.join(' ')}',
+        ),
+      );
 
       await serverService.startServer(command, args);
 
-      bus.publish(AgentEvent(
-        sourceAgent: name,
-        targetAgent: 'System',
-        type: AgentEventType.taskCompleted,
-        payload: 'Server started successfully.',
-      ));
-
+      bus.publish(
+        AgentEvent(
+          sourceAgent: name,
+          targetAgent: 'System',
+          type: AgentEventType.taskCompleted,
+          payload: 'Server started successfully.',
+        ),
+      );
     } catch (e) {
-      bus.publish(AgentEvent(
-        sourceAgent: name,
-        targetAgent: 'System',
-        type: AgentEventType.taskFailed,
-        payload: 'Failed to start server: $e',
-      ));
+      bus.publish(
+        AgentEvent(
+          sourceAgent: name,
+          targetAgent: 'System',
+          type: AgentEventType.taskFailed,
+          payload: 'Failed to start server: $e',
+        ),
+      );
     }
   }
 

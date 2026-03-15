@@ -27,12 +27,18 @@ class FileManagerDrawer extends StatelessWidget {
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
-                   _buildFolder('lib', isExpanded: true, children: [
-                    _buildFile('main.dart', isDart: true),
-                    _buildFolder('ui', isExpanded: true, children: [
-                      _buildFile('router.dart', isDart: true),
-                    ]),
-                  ]),
+                  _buildFolder(
+                    'lib',
+                    isExpanded: true,
+                    children: [
+                      _buildFile('main.dart', isDart: true),
+                      _buildFolder(
+                        'ui',
+                        isExpanded: true,
+                        children: [_buildFile('router.dart', isDart: true)],
+                      ),
+                    ],
+                  ),
                   _buildFolder('assets', isExpanded: false, children: []),
                   _buildFile('pubspec.yaml', isConfig: true),
                   _buildFile('README.md'),
@@ -45,16 +51,27 @@ class FileManagerDrawer extends StatelessWidget {
     );
   }
 
-  Widget _buildFolder(String name, {required bool isExpanded, required List<Widget> children}) {
+  Widget _buildFolder(
+    String name, {
+    required bool isExpanded,
+    required List<Widget> children,
+  }) {
     return ExpansionTile(
       initiallyExpanded: isExpanded,
       iconColor: Colors.grey,
       collapsedIconColor: Colors.grey,
       title: Row(
         children: [
-          Icon(isExpanded ? Icons.folder_open : Icons.folder, size: 16, color: Colors.blueAccent),
+          Icon(
+            isExpanded ? Icons.folder_open : Icons.folder,
+            size: 16,
+            color: Colors.blueAccent,
+          ),
           const SizedBox(width: 8),
-          Text(name, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+          Text(
+            name,
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
+          ),
         ],
       ),
       childrenPadding: const EdgeInsets.only(left: 16),
@@ -65,7 +82,7 @@ class FileManagerDrawer extends StatelessWidget {
   Widget _buildFile(String name, {bool isDart = false, bool isConfig = false}) {
     IconData iconData = Icons.insert_drive_file;
     Color iconColor = Colors.grey;
-    
+
     if (isDart) {
       iconData = Icons.code;
       iconColor = Colors.tealAccent;
@@ -78,7 +95,10 @@ class FileManagerDrawer extends StatelessWidget {
       dense: true,
       visualDensity: VisualDensity.compact,
       leading: Icon(iconData, size: 16, color: iconColor),
-      title: Text(name, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+      title: Text(
+        name,
+        style: const TextStyle(color: Colors.white70, fontSize: 14),
+      ),
       onTap: () {},
     );
   }

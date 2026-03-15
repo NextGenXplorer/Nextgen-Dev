@@ -99,10 +99,7 @@ class _FlowerMenuState extends State<FlowerMenu>
           }),
 
           // Center Togger
-          Positioned(
-            bottom: 24,
-            child: _buildToggler(),
-          ),
+          Positioned(bottom: 24, child: _buildToggler()),
         ],
       ),
     );
@@ -130,11 +127,7 @@ class _FlowerMenuState extends State<FlowerMenu>
       builder: (context, child) {
         final double animValue = CurvedAnimation(
           parent: _controller,
-          curve: Interval(
-            0.1 * index,
-            1.0,
-            curve: Curves.easeOutBack,
-          ),
+          curve: Interval(0.1 * index, 1.0, curve: Curves.easeOutBack),
         ).value;
 
         // Position based on polar coordinates
@@ -142,7 +135,9 @@ class _FlowerMenuState extends State<FlowerMenu>
         final double y = -math.sin(angleRad) * radius * animValue;
 
         return Positioned(
-          bottom: 24 + 12, // match toggler center vertically if Toggler size is 56, 24 + (56/2) - (itemSize/2). Let's just say 24 center.
+          bottom:
+              24 +
+              12, // match toggler center vertically if Toggler size is 56, 24 + (56/2) - (itemSize/2). Let's just say 24 center.
           child: Transform.translate(
             offset: Offset(x, y),
             child: Transform.scale(
@@ -162,12 +157,10 @@ class _FlowerMenuState extends State<FlowerMenu>
           height: 52,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isActive
-                ? AppThemes.accentBlue
-                : AppThemes.surfaceCard,
+            color: isActive ? AppThemes.accentCyan : AppThemes.surfaceCard,
             border: Border.all(
               color: isActive
-                  ? AppThemes.accentBlue.withAlpha(100)
+                  ? AppThemes.accentCyan.withAlpha(100)
                   : AppThemes.dividerColor,
               width: 1.5,
             ),
@@ -179,7 +172,7 @@ class _FlowerMenuState extends State<FlowerMenu>
               ),
               if (isActive)
                 BoxShadow(
-                  color: AppThemes.accentBlue.withAlpha(100),
+                  color: AppThemes.accentCyan.withAlpha(100),
                   blurRadius: 16,
                   spreadRadius: 2,
                 ),
@@ -219,13 +212,13 @@ class _FlowerMenuState extends State<FlowerMenu>
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           gradient: const LinearGradient(
-            colors: [AppThemes.accentBlue, Color(0xFF1D4ED8)],
+            colors: [AppThemes.accentCyan, Color(0xFF1D4ED8)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           boxShadow: [
             BoxShadow(
-              color: AppThemes.accentBlue.withAlpha(100),
+              color: AppThemes.accentCyan.withAlpha(100),
               blurRadius: 12,
               spreadRadius: 2,
               offset: const Offset(0, 4),

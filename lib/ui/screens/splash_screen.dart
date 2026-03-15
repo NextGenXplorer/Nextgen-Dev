@@ -20,7 +20,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Future<void> _startApp() async {
     // Artificial delay for splash feel
     await Future.delayed(const Duration(seconds: 2));
-    
+
     if (!mounted) return;
 
     final keystore = ref.read(keystoreServiceProvider);

@@ -35,7 +35,7 @@ class GitTool implements AgentTool {
     try {
       final docDir = await getApplicationDocumentsDirectory();
       final projectDir = '${docDir.path}/Projects/$projectName';
-      
+
       if (!await Directory(projectDir).exists()) {
         return 'Error: Project folder not found.';
       }

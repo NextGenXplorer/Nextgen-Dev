@@ -12,9 +12,11 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _keyController = TextEditingController();
-  final _localUrlController = TextEditingController(text: 'http://10.0.2.2:11434/v1');
+  final _localUrlController = TextEditingController(
+    text: 'http://10.0.2.2:11434/v1',
+  );
   final _localModelController = TextEditingController(text: 'llama3');
-  
+
   String _selectedProvider = 'gemini';
   bool _isLoading = false;
   bool _isObscured = true;
@@ -49,7 +51,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     await keystore.store('SELECTED_AI_PROVIDER', _selectedProvider);
 
     if (_selectedProvider == 'local') {
-      await keystore.store('LOCAL_AI_BASE_URL', _localUrlController.text.trim());
+      await keystore.store(
+        'LOCAL_AI_BASE_URL',
+        _localUrlController.text.trim(),
+      );
       await keystore.store('LOCAL_AI_MODEL', _localModelController.text.trim());
       if (key.isNotEmpty) {
         await keystore.store('LOCAL_AI_API_KEY', key);
@@ -61,7 +66,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
 
     if (mounted) {
-      context.go('/home/projects');
+      context.go('/home/chat');
     }
   }
 
@@ -76,7 +81,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.shield_outlined, size: 64, color: Colors.greenAccent),
+              const Icon(
+                Icons.shield_outlined,
+                size: 64,
+                color: Colors.greenAccent,
+              ),
               const SizedBox(height: 24),
               const Text(
                 'Security First IDE',
@@ -97,12 +106,30 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   border: OutlineInputBorder(),
                 ),
                 items: [
-                  const DropdownMenuItem(value: 'local', child: Text('Local / On-Premise (Private)')),
-                  const DropdownMenuItem(value: 'gemini', child: Text('Google Gemini (Cloud)')),
-                  const DropdownMenuItem(value: 'openai', child: Text('OpenAI (Cloud)')),
-                  const DropdownMenuItem(value: 'anthropic', child: Text('Anthropic (Cloud)')),
-                  const DropdownMenuItem(value: 'groq', child: Text('Groq (Cloud)')),
-                  const DropdownMenuItem(value: 'openrouter', child: Text('OpenRouter (Cloud)')),
+                  const DropdownMenuItem(
+                    value: 'local',
+                    child: Text('Local / On-Premise (Private)'),
+                  ),
+                  const DropdownMenuItem(
+                    value: 'gemini',
+                    child: Text('Google Gemini (Cloud)'),
+                  ),
+                  const DropdownMenuItem(
+                    value: 'openai',
+                    child: Text('OpenAI (Cloud)'),
+                  ),
+                  const DropdownMenuItem(
+                    value: 'anthropic',
+                    child: Text('Anthropic (Cloud)'),
+                  ),
+                  const DropdownMenuItem(
+                    value: 'groq',
+                    child: Text('Groq (Cloud)'),
+                  ),
+                  const DropdownMenuItem(
+                    value: 'openrouter',
+                    child: Text('OpenRouter (Cloud)'),
+                  ),
                 ],
                 onChanged: (val) {
                   setState(() {
@@ -111,7 +138,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 },
               ),
               const SizedBox(height: 24),
-              
+
               if (isLocal) ...[
                 TextField(
                   controller: _localUrlController,
@@ -133,16 +160,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 ),
                 const SizedBox(height: 16),
               ],
-              
+
               TextField(
                 controller: _keyController,
                 obscureText: _isObscured,
                 decoration: InputDecoration(
-                  labelText: isLocal ? 'API Key (Optional)' : _providerLabels[_selectedProvider],
+                  labelText: isLocal
+                      ? 'API Key (Optional)'
+                      : _providerLabels[_selectedProvider],
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.key),
                   suffixIcon: IconButton(
-                    icon: Icon(_isObscured ? Icons.visibility_off : Icons.visibility),
+                    icon: Icon(
+                      _isObscured ? Icons.visibility_off : Icons.visibility,
+                    ),
                     onPressed: () {
                       setState(() {
                         _isObscured = !_isObscured;
@@ -151,7 +182,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _isLoading ? null : _completeOnboarding,
@@ -160,13 +191,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Colors.white,
                 ),
-                child: _isLoading 
+                child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Start Private Session', style: TextStyle(fontSize: 16)),
+                    : const Text(
+                        'Start Private Session',
+                        style: TextStyle(fontSize: 16),
+                      ),
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () => context.go('/home/projects'),
+                onPressed: () => context.go('/home/chat'),
                 child: const Text('Skip setup (Work Offline)'),
               ),
             ],

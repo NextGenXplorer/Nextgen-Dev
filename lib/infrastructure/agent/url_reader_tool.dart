@@ -12,7 +12,8 @@ class UrlReaderTool implements AgentTool {
   String get uiIcon => 'link';
 
   @override
-  String get description => '''read_url: Fetch and read the text content of a web page.
+  String get description =>
+      '''read_url: Fetch and read the text content of a web page.
 Parameters: {"url": "<full URL starting with https://>"}
 Use this to read articles, documentation, or any web page. Returns plain text content.''';
 
@@ -24,13 +25,15 @@ Use this to read articles, documentation, or any web page. Returns plain text co
     }
 
     try {
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; AIAgent/1.0)',
-          'Accept': 'text/html,application/xhtml+xml',
-        },
-      ).timeout(const Duration(seconds: 12));
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; AIAgent/1.0)',
+              'Accept': 'text/html,application/xhtml+xml',
+            },
+          )
+          .timeout(const Duration(seconds: 12));
 
       if (response.statusCode != 200) {
         return 'Failed to read URL: HTTP ${response.statusCode}';
@@ -43,7 +46,9 @@ Use this to read articles, documentation, or any web page. Returns plain text co
       if (text.length > 3000) {
         return '${text.substring(0, 3000)}\n\n[Content truncated — ${text.length} total chars]';
       }
-      return text.isNotEmpty ? text : 'No readable text content found on this page.';
+      return text.isNotEmpty
+          ? text
+          : 'No readable text content found on this page.';
     } catch (e) {
       return 'Error reading URL: $e';
     }
@@ -52,16 +57,33 @@ Use this to read articles, documentation, or any web page. Returns plain text co
   String _stripHtml(String html) {
     // Remove script and style blocks
     var text = html
-        .replaceAll(RegExp(r'<script[^>]*>.*?</script>', dotAll: true, caseSensitive: false), ' ')
-        .replaceAll(RegExp(r'<style[^>]*>.*?</style>', dotAll: true, caseSensitive: false), ' ')
-        .replaceAll(RegExp(r'<head[^>]*>.*?</head>', dotAll: true, caseSensitive: false), ' ')
-        .replaceAll(RegExp(r'<[^>]+>'), ' ')       // strip tags
+        .replaceAll(
+          RegExp(
+            r'<script[^>]*>.*?</script>',
+            dotAll: true,
+            caseSensitive: false,
+          ),
+          ' ',
+        )
+        .replaceAll(
+          RegExp(
+            r'<style[^>]*>.*?</style>',
+            dotAll: true,
+            caseSensitive: false,
+          ),
+          ' ',
+        )
+        .replaceAll(
+          RegExp(r'<head[^>]*>.*?</head>', dotAll: true, caseSensitive: false),
+          ' ',
+        )
+        .replaceAll(RegExp(r'<[^>]+>'), ' ') // strip tags
         .replaceAll(RegExp(r'&nbsp;'), ' ')
         .replaceAll(RegExp(r'&amp;'), '&')
         .replaceAll(RegExp(r'&lt;'), '<')
         .replaceAll(RegExp(r'&gt;'), '>')
         .replaceAll(RegExp(r'&quot;'), '"')
-        .replaceAll(RegExp(r'\s+'), ' ')            // collapse whitespace
+        .replaceAll(RegExp(r'\s+'), ' ') // collapse whitespace
         .trim();
     return text;
   }

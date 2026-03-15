@@ -9,7 +9,11 @@ class CrashReportingService {
     FlutterError.onError = (FlutterErrorDetails details) {
       if (kReleaseMode) {
         // Send to Crashlytics
-        _recordError(details.exception, details.stack, reason: details.context?.toString());
+        _recordError(
+          details.exception,
+          details.stack,
+          reason: details.context?.toString(),
+        );
       } else {
         // Log to console in debug mode
         FlutterError.presentError(details);
