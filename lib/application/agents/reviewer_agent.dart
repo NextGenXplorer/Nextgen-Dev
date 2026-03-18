@@ -1,14 +1,23 @@
 import '../../domain/interfaces/agent.dart';
 import '../../domain/models/agent_event.dart';
+import '../../domain/models/agent_handoff.dart';
 import '../agent_bus.dart';
 import '../../domain/interfaces/ai_provider.dart';
 import '../../domain/models/chat_message.dart';
+import '../../infrastructure/services/agent_memory_service.dart';
 
 class ReviewerAgent extends Agent {
   final AgentBus bus;
   final AIProvider aiProvider;
+  final AgentMemoryService memoryService;
+  final String? Function()? projectPathProvider;
 
-  ReviewerAgent({required this.bus, required this.aiProvider});
+  ReviewerAgent({
+    required this.bus,
+    required this.aiProvider,
+    required this.memoryService,
+    this.projectPathProvider,
+  });
 
   @override
   String get name => 'ReviewerAgent';
@@ -35,13 +44,21 @@ class ReviewerAgent extends Agent {
     );
 
     try {
-      final payload = event.payload as Map<String, dynamic>;
+      final payload =
+          AgentHandoff.unwrapData(event.payload) as Map<String, dynamic>;
       final codeLog = payload['codeLog'] ?? '';
       final originalTask = payload['originalTask'];
+      final memoryContext = await memoryService.buildExecutionContext(
+        task: '$originalTask\n$codeLog',
+        projectPath: projectPathProvider?.call(),
+        agentName: name,
+      );
 
       final prompt =
           '''
 You are an ELITE senior code reviewer. Analyze the following implementation logs for the task: $originalTask
+
+$memoryContext
 
 Rules:
 - Reject commits with obvious flaws, missing error handling, or generic UI implementations.
@@ -79,9 +96,16 @@ $codeLog
         bus.publish(
           AgentEvent(
             sourceAgent: name,
-            targetAgent: 'ServeAgent',
+            targetAgent: 'PreviewAgent',
             type: AgentEventType.taskAssigned,
-            payload: 'start',
+            payload: AgentHandoff(
+              status: 'completed',
+              reason: 'Review passed and preview can start.',
+              artifacts: ['review_result'],
+              evidence: ['ReviewerAgent returned LGTM.'],
+              nextRecommendedAgent: 'PreviewAgent',
+              data: {'command': 'start'},
+            ).toJson(),
           ),
         );
 
@@ -90,16 +114,33 @@ $codeLog
             sourceAgent: name,
             targetAgent: 'System',
             type: AgentEventType.taskCompleted,
-            payload: 'Review passed. LGTM. Auto-starting dev server.',
+            payload: AgentHandoff(
+              status: 'completed',
+              reason: 'Review passed. LGTM. Auto-starting dev server.',
+              artifacts: ['review_result'],
+              evidence: [review],
+              nextRecommendedAgent: 'PreviewAgent',
+            ).toJson(),
           ),
         );
       } else {
         bus.publish(
           AgentEvent(
             sourceAgent: name,
-            targetAgent: 'CoderAgent',
-            type: AgentEventType.taskFailed,
-            payload: 'Code review failed. Feedback:\\n$review',
+            targetAgent: 'SupervisorAgent',
+            type: AgentEventType.taskAssigned,
+            payload: AgentHandoff(
+              status: 'failed',
+              reason: 'Review failed and requires recovery routing.',
+              artifacts: ['review_result'],
+              evidence: [review],
+              nextRecommendedAgent: 'SupervisorAgent',
+              data: {
+                'sourceAgent': name,
+                'failure': 'Code review failed. Feedback:\\n$review',
+                'retryCount': 1,
+              },
+            ).toJson(),
           ),
         );
       }
@@ -109,7 +150,12 @@ $codeLog
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskFailed,
-          payload: 'Failed to complete review: $e',
+          payload: AgentHandoff(
+            status: 'failed',
+            reason: 'Failed to complete review: $e',
+            evidence: ['ReviewerAgent threw an exception.'],
+            nextRecommendedAgent: 'SupervisorAgent',
+          ).toJson(),
         ),
       );
     }

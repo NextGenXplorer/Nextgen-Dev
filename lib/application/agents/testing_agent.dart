@@ -1,18 +1,28 @@
 import '../../domain/interfaces/agent.dart';
 import '../../domain/models/agent_event.dart';
+import '../../domain/models/agent_handoff.dart';
 import '../../domain/models/agent_step.dart';
 import '../agent_bus.dart';
 import '../../domain/interfaces/ai_provider.dart';
 import '../../domain/models/chat_message.dart';
 import '../../infrastructure/agent/agent_service.dart';
+import '../../infrastructure/services/agent_memory_service.dart';
 import '../../infrastructure/storage/workspace_manager.dart';
 
 class TestingAgent extends Agent {
   final AgentBus bus;
   final AIProvider aiProvider;
   final WorkspaceManager workspaceManager;
+  final AgentMemoryService memoryService;
+  final String? Function()? projectPathProvider;
 
-  TestingAgent({required this.bus, required this.aiProvider, required this.workspaceManager});
+  TestingAgent({
+    required this.bus,
+    required this.aiProvider,
+    required this.workspaceManager,
+    required this.memoryService,
+    this.projectPathProvider,
+  });
 
   @override
   String get name => 'TestingAgent';
@@ -39,7 +49,8 @@ class TestingAgent extends Agent {
     );
 
     try {
-      final payload = event.payload as Map<String, dynamic>;
+      final payload =
+          AgentHandoff.unwrapData(event.payload) as Map<String, dynamic>;
       final codeLog = payload['codeLog'] ?? '';
       final originalTask = payload['originalTask'];
 
@@ -50,7 +61,7 @@ You are an ELITE TESTING AGENT. Your job is to verify the implementation by runn
 1. EXPLORE: Use `list_directory` to see what was built.
 2. TEST: 
    - You MUST identify the correct test or build command (e.g., `flutter analyze`, `npm run build`, `pytest`).
-   - Run the command using `<tool_call>{"name": "run_terminal_command", "command": "..."}</tool_call>`.
+   - Run the command using the structured tool action protocol with `run_terminal_command`.
 3. VERIFY:
    - If the command succeeds (Exit code 0, no errors), output exclusively 'PASSED'.
    - If the command fails, analyze the output and provide detailed feedback for the DebuggerAgent.
@@ -66,6 +77,8 @@ $codeLog
         mode: 'Agent',
         maxToolCalls: 15,
         workspaceManager: workspaceManager,
+        projectPathProvider: projectPathProvider,
+        memoryService: memoryService,
       );
       
       String response = '';
@@ -96,9 +109,19 @@ $codeLog
         bus.publish(
           AgentEvent(
             sourceAgent: name,
-            targetAgent: 'PreviewAgent',
+            targetAgent: 'ReviewerAgent',
             type: AgentEventType.taskAssigned,
-            payload: 'start',
+            payload: AgentHandoff(
+              status: 'completed',
+              reason: 'Implementation passed testing and is ready for review.',
+              artifacts: ['test_summary'],
+              evidence: [response],
+              nextRecommendedAgent: 'ReviewerAgent',
+              data: {
+                'originalTask': originalTask,
+                'codeLog': '$codeLog\n\nTesting summary:\n$response',
+              },
+            ).toJson(),
           ),
         );
         bus.publish(
@@ -106,16 +129,33 @@ $codeLog
             sourceAgent: name,
             targetAgent: 'System',
             type: AgentEventType.taskCompleted,
-            payload: 'Testing passed. Handing off to PreviewAgent.',
+            payload: AgentHandoff(
+              status: 'completed',
+              reason: 'Testing passed. Handing off to ReviewerAgent.',
+              artifacts: ['test_summary'],
+              evidence: [response],
+              nextRecommendedAgent: 'ReviewerAgent',
+            ).toJson(),
           ),
         );
       } else {
         bus.publish(
           AgentEvent(
             sourceAgent: name,
-            targetAgent: 'DebuggerAgent',
-            type: AgentEventType.error,
-            payload: 'Testing failed. Feedback:\n$response',
+            targetAgent: 'SupervisorAgent',
+            type: AgentEventType.taskAssigned,
+            payload: AgentHandoff(
+              status: 'failed',
+              reason: 'Testing failed and requires recovery routing.',
+              artifacts: ['test_summary'],
+              evidence: [response],
+              nextRecommendedAgent: 'SupervisorAgent',
+              data: {
+                'sourceAgent': name,
+                'failure': 'Testing failed. Feedback:\n$response',
+                'retryCount': 1,
+              },
+            ).toJson(),
           ),
         );
       }
@@ -125,7 +165,12 @@ $codeLog
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskFailed,
-          payload: 'Failed to complete testing: $e',
+          payload: AgentHandoff(
+            status: 'failed',
+            reason: 'Failed to complete testing: $e',
+            evidence: ['TestingAgent threw an exception.'],
+            nextRecommendedAgent: 'SupervisorAgent',
+          ).toJson(),
         ),
       );
     }
