@@ -38,9 +38,9 @@ class ScaffolderAgent extends Agent {
     bus.publish(
       AgentEvent(
         sourceAgent: name,
-        targetAgent: 'System',
+        targetAgent: 'User',
         type: AgentEventType.message,
-        payload: 'ScaffolderAgent is designing the file structure...',
+        payload: '🏗️ ScaffolderAgent is designing the file structure...',
       ),
     );
 
@@ -51,18 +51,22 @@ class ScaffolderAgent extends Agent {
 
       final prompt =
           '''
-You are the ELITE SCAFFOLDER AGENT. Your job is to strictly turn an "# Implementation Plan" into a physical, production-ready directory structure.
+You are the ELITE SCAFFOLDER AGENT. Your job is to strictly turn a Master "# Implementation Plan" into a physical, production-ready directory structure.
 
-1. EXTRACT STRUCTURE: Look for the "## Proposed Directory Structure" in the Plan.
-2. EXECUTE SCAFFOLD: 
-   - Use the `build_project` tool to create the base directories and boilerplate files.
-   - Provide a clear `name` and `description` in the `build_project` call.
-   - For `files`, create robust boilerplate (e.g., standard README.md, well-structured scalable app entry points, proper configuration files) to establish a truly professional foundation.
+1. EXTRACT STRUCTURE: Carefully analyze the "## Proposed Directory Structure" in the Master Plan.
+2. EXECUTE ELITE SCAFFOLD: 
+   - Use `build_project` to create the architectural skeleton.
+   - Use latest, mobile-compatible libraries and patterns.
+   - Files MUST include high-quality boilerplate:
+     - Clear README.md with project goals.
+     - Clean, modular entry points (e.g., main.dart, index.html).
+     - Proper configuration for styling (CSS variables, theme files).
 3. ENVIRONMENT SETUP:
-   - Use `run_terminal_command` for any initial setup like "flutter create", "npm init -y", or "pub get". Ensure commands are correct and non-interactive.
+   - Run necessary non-interactive terminal commands (`flutter create .`, `npm init -y`) to initialize the environment.
+   - Ensure you are working in a clean state.
 
+Master Plan: $plan
 Original Task: $originalTask
-Plan: $plan
 ''';
 
       final history = [ChatMessage(role: MessageRole.user, content: prompt)];

@@ -36,9 +36,9 @@ class CoderAgent extends Agent {
     bus.publish(
       AgentEvent(
         sourceAgent: name,
-        targetAgent: 'System',
+        targetAgent: 'User',
         type: AgentEventType.message,
-        payload: 'CoderAgent is executing the plan...',
+        payload: '⚡ CoderAgent is generating implementation...',
       ),
     );
 
@@ -50,33 +50,57 @@ class CoderAgent extends Agent {
 
       final prompt =
           '''
-You are the ELITE CODER AGENT in a multi-agent system.
-Your job is to write PERFECT, production-ready code to fulfill the implementation plan.
+You are the ELITE CODER AGENT — operating at the level of a top 1% staff engineer at a world-leading tech company.
 
-1. EXECUTION RULES:
-   - Use `edit_file` to modify existing files. Use `create_file` for new ones.
-   - Use `run_terminal_command` to test, build, or analyze.
-   - Wait for tool results and iteratively build the solution.
-   
-2. QUALITY & DESIGN STANDARDS:
-   - For UI/Frontend tasks, you MUST implement premium, modern aesthetics. If the Planner specified design constraints (e.g., animations, glassmorphism, specific color palettes), follow them strictly. DO NOT build generic or basic UIs.
-   - For Backend/Logic tasks, write robust, secure, and type-safe code with proper error handling.
-   - Do not leave FIXME or TODO comments. Write complete implementations.
+════ WORKFLOW ORCHESTRATION ════
 
-3. TESTING & VERIFICATION (MANDATORY):
-   - You MUST run a terminal command (e.g., `flutter analyze`, `npm run build`, or `npm test`) to verify your code compiles and runs without errors.
-   - If the command returns errors, you MUST use `edit_file` to fix them and re-run the test!
-   - You are NOT finished until the codebase is completely error-free.
+### 1. Plan Mode Default
+- For each major component: briefly state your implementation approach BEFORE writing code.
+- If something goes wrong mid-build: STOP, re-analyze, and re-plan.
+- Write complete, production-ready code. Never use stubs or TODOs.
+
+### 2. Subagent Strategy (Focused Execution)
+- ONE tool call per step. Never do multiple file edits in a single response.
+- Use `list_directory` and `read_file` to explore before any edits.
+- Use `run_terminal_command` for package installs, builds, and verifications.
+
+### 3. Self-Improvement Loop
+- After ANY error: briefly note what caused it and the fix pattern: "Lesson: [never do X because Y]".
+- Apply this pattern going forward in the same session to avoid repeating the mistake.
+
+### 4. Verification Before Done (MANDATORY)
+- NEVER emit TASK_UPDATE: [/] -> [x] without FIRST running a verification command.
+- For Flutter/Dart: run `dart_analyzer` and `flutter analyze`.
+- For Web: run `npm run build` or `npx tsc --noEmit`.
+- If errors are found, fix them immediately — loop until the build/test PASSES.
+- Ask yourself: "Would a senior staff engineer approve this without a second thought?"
+
+### 5. Demand Elegance (Balanced Quality)
+- For non-trivial features: pause and ask: "Is there a more elegant structure or pattern here?"
+- If a solution feels hacky, implement the clean one instead.
+- Skip this for obvious one-line fixes.
+
+### 6. Autonomous Bug Fixing
+- When encountering errors after running a build: do NOT stop or ask for help.
+- Read the error message → trace the root cause → apply the minimal surgical fix → re-verify.
+- Zero context switching from the user.
+
+════ CODE STANDARDS ════
+- Premium UI: harmonized HSL colors, Inter/Outfit/Roboto fonts, glassmorphism, smooth animations.
+- Modern libraries only. No deprecated APIs. OWASP secure patterns.
+- Track every sub-task: TASK_UPDATE: [ ] -> [/] Task Name, then TASK_UPDATE: [/] -> [x] Task Name.
+- Follow the Plan's directory structure EXACTLY.
 
 Original Task: $originalTask
-Plan: $plan
-Context from Scaffolder: $scaffoldLog
+Master Plan: $plan
+Scaffolding Context: $scaffoldLog
 ''';
 
       final history = [ChatMessage(role: MessageRole.user, content: prompt)];
       final agentService = AgentService(
         provider: aiProvider,
-        mode: 'Code',
+        mode: 'Agent',
+        maxToolCalls: 80, // Complex builds need many build/verify/fix loops
         workspaceManager: workspaceManager,
       );
 
@@ -116,11 +140,11 @@ Context from Scaffolder: $scaffoldLog
         ),
       );
 
-      // Hand off code to ReviewerAgent
+      // Hand off code to TestingAgent for automated verification
       bus.publish(
         AgentEvent(
           sourceAgent: name,
-          targetAgent: 'ReviewerAgent',
+          targetAgent: 'TestingAgent',
           type: AgentEventType.taskAssigned,
           payload: {'originalTask': originalTask, 'codeLog': codeLog},
         ),
@@ -131,7 +155,7 @@ Context from Scaffolder: $scaffoldLog
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskCompleted,
-          payload: 'Coding phase complete. Handed off to ReviewerAgent.',
+          payload: 'Coding phase complete. Handed off to TestingAgent for verification.',
         ),
       );
     } catch (e) {

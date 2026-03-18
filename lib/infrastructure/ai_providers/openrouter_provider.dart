@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import '../../domain/interfaces/ai_provider.dart';
 import '../../domain/models/chat_message.dart';
 
@@ -90,20 +91,34 @@ class OpenRouterProvider implements AIProvider {
       throw Exception('OpenRouter Stream Error: $body');
     }
 
+    String buffer = '';
     await for (final chunk in response.stream.transform(utf8.decoder)) {
-      // Fix: split on actual newline character, not escaped \\n
-      final lines = chunk.split('\n');
+      buffer += chunk;
+      final lines = buffer.split('\n');
+      
+      // Keep the last part in the buffer if it doesn't end with a newline
+      if (!buffer.endsWith('\n')) {
+        buffer = lines.removeLast();
+      } else {
+        buffer = '';
+      }
+
       for (final line in lines) {
         final trimmed = line.trim();
         if (trimmed.startsWith('data: ') && trimmed != 'data: [DONE]') {
           try {
             final json = jsonDecode(trimmed.substring(6));
-            final content = json['choices'][0]['delta']['content'];
-            if (content != null) {
-              yield content as String;
+            final choices = json['choices'] as List;
+            if (choices.isNotEmpty) {
+              final delta = choices[0]['delta'] as Map<String, dynamic>;
+              final content = delta['content'];
+              if (content != null) {
+                yield content as String;
+              }
             }
-          } catch (_) {
-            // Ignore parse errors for incomplete chunks
+          } catch (e) {
+            // Log parse errors if needed, but don't crash
+            debugPrint('OpenRouter parsing error: $e for line: $line');
           }
         }
       }

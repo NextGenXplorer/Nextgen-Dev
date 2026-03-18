@@ -1,6 +1,7 @@
 import 'dart:async';
 import '../../domain/interfaces/agent.dart';
 import '../../domain/models/agent_event.dart';
+import '../../domain/models/agent_step.dart';
 import '../agent_bus.dart';
 import '../../domain/interfaces/ai_provider.dart';
 import '../../domain/models/chat_message.dart';
@@ -45,24 +46,47 @@ class DebuggerAgent extends Agent {
 
       final prompt =
           '''
-You are an expert Debugger. A fatal crash or test failure has occurred in the application.
-Error Trace:
+You are an AUTONOMOUS SOLVER AGENT — an elite debugger who operates at the level of a senior staff engineer. A crash or build failure has occurred. Fix it completely without asking the user for guidance.
+
+════ WORKFLOW ORCHESTRATION ════
+
+### 1. Plan Mode
+- Before touching any file: write a brief analysis of the error and your intended fix strategy.
+- If your initial diagnosis is wrong: STOP, re-read the logs, re-plan.
+
+### 2. Subagent Strategy (Focused Execution)
+- ONE tool call per step. No bulk edits.
+- Use `read_file` for every file mentioned in the stack trace before attempting a fix.
+
+### 3. Self-Improvement Loop
+- After each fix, note the pattern: "Lesson: [Root cause | Never do X because Y]".
+- Carry this lesson forward to avoid repeating the same class of errors.
+
+### 4. Verification Before Done (MANDATORY)
+- After applying the fix: run the SAME command that produced the error.
+- Iterate the fix/verify loop until exit code is 0.
+- NEVER report success without proof of a passing build/test.
+
+### 5. Demand Elegance
+- Apply the most minimal, surgical fix possible. No unnecessary refactors.
+- If the obvious fix feels hacky, ask: "What is the elegant, root-cause solution?"
+
+### 6. Autonomous Bug Fixing
+- No hand-holding. No asking for clarification.
+- Read the error → trace root cause → apply fix → verify → report done.
+
+════ ERROR REPORT ════
 $errorMessage
 
-Your tasks:
-1. Analyze the stack trace.
-2. Use `<tool_call>{"name": "read_file", "path": "..."}</tool_call>` to inspect the files mentioned in the trace.
-3. Determine the exact root cause of the crash.
-4. Use `<tool_call>{"name": "edit_file", "path": "...", "target_text": "...", "replacement_text": "..."}</tool_call>` to fix the bug directly in the code.
-5. Provide a summary of what you fixed.
+Zero context switching from the user. Fix it. Prove it works. Report done.
 ''';
 
       final history = [ChatMessage(role: MessageRole.user, content: prompt)];
 
       final agentService = AgentService(
         provider: aiProvider,
-        mode: 'Code',
-        maxToolCalls: 10,
+        mode: 'Agent',
+        maxToolCalls: 40,
         workspaceManager: workspaceManager,
       );
 
@@ -72,14 +96,27 @@ Your tasks:
           .run(history)
           .listen(
             (step) {
-              bus.publish(
-                AgentEvent(
-                  sourceAgent: name,
-                  targetAgent: 'System',
-                  type: AgentEventType.agentStep,
-                  payload: step,
-                ),
-              );
+              if (step.type == AgentStepType.toolCall ||
+                  step.type == AgentStepType.toolResult) {
+                bus.publish(
+                  AgentEvent(
+                    sourceAgent: name,
+                    targetAgent: 'System',
+                    type: AgentEventType.agentStep,
+                    payload: step,
+                  ),
+                );
+              } else if (step.type == AgentStepType.text ||
+                  step.type == AgentStepType.finalAnswer) {
+                bus.publish(
+                  AgentEvent(
+                    sourceAgent: name,
+                    targetAgent: 'User',
+                    type: AgentEventType.message,
+                    payload: step.content,
+                  ),
+                );
+              }
             },
             onDone: () {
               bus.publish(
@@ -94,12 +131,12 @@ Your tasks:
               bus.publish(
                 AgentEvent(
                   sourceAgent: name,
-                  targetAgent: 'ReviewerAgent',
+                  targetAgent: 'TestingAgent',
                   type: AgentEventType.taskAssigned,
                   payload: {
                     'originalTask': 'Verify fixes applied by DebuggerAgent',
                     'codeLog':
-                        'DebuggerAgent analyzed the crash and applied fixes via edit_file. Please review to see if LGTM.',
+                        'DebuggerAgent analyzed the crash and applied fixes via edit_file. Please review to see if PASSED.',
                   },
                 ),
               );

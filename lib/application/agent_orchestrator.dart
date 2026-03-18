@@ -7,10 +7,11 @@ import 'agent_bus.dart';
 import 'agents/planner_agent.dart';
 import 'agents/scaffolder_agent.dart';
 import 'agents/coder_agent.dart';
-import 'agents/reviewer_agent.dart';
+import 'agents/testing_agent.dart';
 import 'agents/debugger_agent.dart';
 import 'agents/deployer_agent.dart';
-import 'agents/serve_agent.dart';
+import 'agents/preview_agent.dart';
+import 'agents/requirements_agent.dart';
 import 'providers/ai_service_provider.dart';
 import '../infrastructure/services/git_service.dart';
 import '../infrastructure/services/dev_server_service.dart';
@@ -49,16 +50,17 @@ final orchestratorProvider = Provider<AgentOrchestrator>((ref) {
   // In a real app we might handle loading states, but for early sprint logic:
   aiProviderFuture.whenData((ai) {
     if (ai != null) {
+      orchestrator.registerAgent(RequirementsAgent(bus: bus, aiProvider: ai, workspaceManager: workspaceManager));
       orchestrator.registerAgent(PlannerAgent(bus: bus, aiProvider: ai, workspaceManager: workspaceManager));
       orchestrator.registerAgent(ScaffolderAgent(bus: bus, aiProvider: ai, workspaceManager: workspaceManager));
       orchestrator.registerAgent(CoderAgent(bus: bus, aiProvider: ai, workspaceManager: workspaceManager));
-      orchestrator.registerAgent(ReviewerAgent(bus: bus, aiProvider: ai));
+      orchestrator.registerAgent(TestingAgent(bus: bus, aiProvider: ai, workspaceManager: workspaceManager));
       orchestrator.registerAgent(DebuggerAgent(bus: bus, aiProvider: ai, workspaceManager: workspaceManager));
       orchestrator.registerAgent(
         DeployerAgent(bus: bus, aiProvider: ai, gitService: gitService),
       );
       orchestrator.registerAgent(
-        ServeAgent(bus: bus, aiProvider: ai, serverService: devServerService),
+        PreviewAgent(bus: bus, aiProvider: ai, serverService: devServerService),
       );
     }
   });
@@ -106,7 +108,23 @@ class AgentOrchestrator {
       _handleFailure(event);
     }
 
-    // New: Handle Plan Approval Lifecycle
+    // Requirements gathered → enrich the task and send to PlannerAgent.
+    if (event.type == AgentEventType.requirementsGathered) {
+      final p = event.payload as Map<String, dynamic>;
+      final enrichedTask =
+          '${p['originalTask']}\n\n---\n${p['gatheredRequirements']}';
+      bus.publish(
+        AgentEvent(
+          sourceAgent: 'Orchestrator',
+          targetAgent: 'PlannerAgent',
+          type: AgentEventType.taskAssigned,
+          payload: enrichedTask,
+        ),
+      );
+      return;
+    }
+
+    // Plan approval lifecycle.
     if (event.type == AgentEventType.planApproved) {
       bus.publish(
         AgentEvent(
@@ -129,6 +147,21 @@ class AgentOrchestrator {
         ),
       );
       return;
+    }
+
+    // Terminal task completion signal.
+    if (event.type == AgentEventType.taskCompleted) {
+      if (event.sourceAgent == 'PreviewAgent' ||
+          event.sourceAgent == 'DeployerAgent') {
+        bus.publish(
+          AgentEvent(
+            sourceAgent: 'Orchestrator',
+            targetAgent: 'System',
+            type: AgentEventType.agentFinished,
+            payload: 'chain_completed',
+          ),
+        );
+      }
     }
 
     for (final agent in _agents) {
@@ -179,7 +212,15 @@ class AgentOrchestrator {
           targetAgent: 'User',
           type: AgentEventType.message,
           payload:
-              'Critial Failure: Max retries exceeded for task. Error: $payloadStr',
+              'Critical Failure: Max retries exceeded for task. Error: $payloadStr',
+        ),
+      );
+      bus.publish(
+        AgentEvent(
+          sourceAgent: 'Orchestrator',
+          targetAgent: 'System',
+          type: AgentEventType.agentFinished,
+          payload: 'exceeded_retries',
         ),
       );
     }
@@ -190,9 +231,27 @@ class AgentOrchestrator {
     bus.publish(
       AgentEvent(
         sourceAgent: 'User',
-        targetAgent: 'PlannerAgent', // Always starts with planning
+        targetAgent: 'RequirementsAgent', // Always starts with requirements gathering
         type: AgentEventType.taskAssigned,
         payload: taskDescription,
+      ),
+    );
+  }
+
+  /// Called when the user sends a follow-up answer to the RequirementsAgent.
+  void dispatchRequirementsFollowUp({
+    required String originalTask,
+    required String userAnswer,
+  }) {
+    bus.publish(
+      AgentEvent(
+        sourceAgent: 'User',
+        targetAgent: 'RequirementsAgent',
+        type: AgentEventType.taskAssigned,
+        payload: {
+          'originalTask': originalTask,
+          'followUp': userAnswer,
+        },
       ),
     );
   }

@@ -92,6 +92,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   String? get _activeProjectPath => ref.read(agentSessionProvider).activeProjectPath;
   Map<String, dynamic>? get _lastPlanPayload => ref.read(agentSessionProvider).lastPlanPayload;
   List<app_models.ChatMessage> get _messages => ref.read(agentSessionProvider).chatHistory;
+  bool get _awaitingRequirements => ref.read(agentSessionProvider).awaitingRequirements;
+  String? get _pendingRequirementsTask => ref.read(agentSessionProvider).pendingRequirementsTask;
 
   @override
   void initState() {
@@ -111,6 +113,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       if (event.type == AgentEventType.planReady) {
         final payload = event.payload as Map<String, dynamic>;
         session.setPlan(payload['plan'] ?? '', payload);
+        // Requirements phase is done — clear the flag.
+        session.setAwaitingRequirements(false);
         setState(() {});
       }
 
@@ -123,21 +127,76 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         _handleTaskUpdate(event.payload.toString());
       }
 
-      // Team / Agent step handling
+      // RequirementsAgent signals — track the Q&A phase.
+      if (event.type == AgentEventType.awaitingRequirements) {
+        final p = event.payload;
+        String? originalTask;
+        if (p is Map<String, dynamic>) originalTask = p['originalTask'] as String?;
+        session.setAwaitingRequirements(true, originalTask: originalTask);
+        session.setRunning(false);
+        setState(() {});
+      }
+
+      if (event.type == AgentEventType.requirementsGathered) {
+        // Requirements are locked in, PlannerAgent will take over.
+        session.setAwaitingRequirements(false);
+        session.setRunning(true);
+        setState(() {});
+      }
+
       if (_selectedMode == 'Team' || _selectedMode == 'Agent') {
         if (event.type == AgentEventType.agentStep) {
           final step = event.payload as AgentStep;
           setState(() => _items = [..._items, _ChatItem.step(step)]);
           _extractFileChanges(step);
-        } else if (event.type == AgentEventType.message && event.targetAgent == 'User') {
-          // Displayed via text step stream
+        } else if (event.type == AgentEventType.message) {
+          // If targeted to 'User', or from an known agent to 'System' (as a status update), we show it.
+          final isUserTarget = event.targetAgent == 'User';
+          final isSystemTarget = event.targetAgent == 'System';
+          
+          if (isUserTarget || isSystemTarget) {
+            final chunk = event.payload.toString();
+            
+            if (_items.isEmpty || _items.last.message == null || _items.last.message!.role != app_models.MessageRole.model) {
+              // Start a new model message block
+              final newAiMsg = app_models.ChatMessage(
+                role: app_models.MessageRole.model,
+                content: chunk,
+              );
+              session.addMessage(newAiMsg);
+              setState(() {
+                _items = [..._items, _ChatItem.message(newAiMsg)];
+              });
+            } else {
+              // Append to the existing block
+              final lastMsg = _items.last.message!;
+              final updatedMsg = app_models.ChatMessage(
+                role: app_models.MessageRole.model,
+                content: lastMsg.content + chunk,
+              );
+              
+              setState(() {
+                _items[_items.length - 1] = _ChatItem.message(updatedMsg);
+              });
+              session.updateLastMessage(updatedMsg);
+            }
+            _scrollToBottom();
+          }
         }
       }
 
-      if (event.type == AgentEventType.taskCompleted &&
-          (event.sourceAgent == 'ReviewerAgent' || event.sourceAgent == 'CoderAgent')) {
+      if (event.type == AgentEventType.agentFinished || 
+          event.type == AgentEventType.taskFailed) {
         session.setRunning(false);
         setState(() {});
+      }
+
+      if (event.type == AgentEventType.taskCompleted) {
+        // We still might want to clear running state on CERTAIN completions as a fallback
+        if (event.sourceAgent == 'PreviewAgent' || event.sourceAgent == 'DeployerAgent') {
+           session.setRunning(false);
+           setState(() {});
+        }
       }
 
       _scrollToBottom();
@@ -208,6 +267,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
     if (_selectedMode == 'Team') {
       ref.read(orchestratorProvider).dispatchTask(text);
+      return;
+    }
+
+    // Agent mode: if RequirementsAgent is awaiting answers, route back to it.
+    if (_selectedMode == 'Agent' && _awaitingRequirements) {
+      final originalTask = _pendingRequirementsTask ?? text;
+      ref.read(orchestratorProvider).dispatchRequirementsFollowUp(
+        originalTask: originalTask,
+        userAnswer: text,
+      );
+      session.setRunning(true);
+      setState(() {});
+      return;
+    }
+
+    // Agent mode: new task — start with requirements gathering.
+    if (_selectedMode == 'Agent') {
+      ref.read(orchestratorProvider).dispatchTask(text);
+      session.setRunning(true);
+      setState(() {});
       return;
     }
 
@@ -504,11 +583,46 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     : _buildItemList(),
               ),
               if (_isRunning) _buildThinking(),
+              if (_awaitingRequirements && !_isRunning) _buildRequirementsBanner(),
               if (_changedFiles.isNotEmpty) _buildFilesChangedBanner(),
               _buildInput(),
               const SizedBox(height: 8), // Small padding for safety
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  // ── Requirements Awaiting Banner ────────────────────────────────────────
+  Widget _buildRequirementsBanner() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 2, 16, 2),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: const Color(0xFF130D21),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFFA78BFA).withAlpha(90),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            const Text('📋', style: TextStyle(fontSize: 13)),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Requirements Agent is asking questions — type your answers and send',
+                style: TextStyle(
+                  color: Color(0xFFC4B5FD),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -717,14 +831,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     if (isSystem) {
       return Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF7A1515).withAlpha(180),
-          borderRadius: BorderRadius.circular(10),
+          color: AppThemes.errorRed.withAlpha(15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppThemes.errorRed.withAlpha(40)),
         ),
-        child: Text(
-          msg.content,
-          style: const TextStyle(color: Colors.white70, fontSize: 13),
+        child: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: AppThemes.errorRed, size: 14),
+            const SizedBox(width: 8),
+            Expanded(child: Text(msg.content, style: const TextStyle(color: AppThemes.errorRed, fontSize: 12))),
+          ],
         ),
       );
     }
@@ -788,35 +906,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser) ...[
             Container(
-              width: 32,
-              height: 32,
-              margin: const EdgeInsets.only(right: 12, top: 2),
+              width: 30,
+              height: 30,
+              margin: const EdgeInsets.only(right: 10, bottom: 2),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: const LinearGradient(
-                  colors: [AppThemes.accentCyan, AppThemes.accentCobalt],
+                  colors: [Color(0xFF1E40AF), AppThemes.accentCyan],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 boxShadow: [
-                  BoxShadow(
-                    color: AppThemes.accentCyan.withAlpha(60),
-                    blurRadius: 8,
-                  ),
+                  BoxShadow(color: AppThemes.accentCyan.withAlpha(70), blurRadius: 10),
                 ],
               ),
-              child: const Icon(
-                Icons.smart_toy_outlined,
-                size: 16,
-                color: AppThemes.bgDark,
-              ),
+              child: const Icon(Icons.auto_awesome_rounded, size: 14, color: Colors.white),
             ),
           ],
           Flexible(
@@ -824,95 +935,77 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               onLongPress: () {
                 Clipboard.setData(ClipboardData(text: content));
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Copied'),
-                    duration: Duration(seconds: 1),
-                    backgroundColor: AppThemes.surfaceDark,
+                  SnackBar(
+                    content: const Text('Copied to clipboard'),
+                    duration: const Duration(seconds: 1),
+                    backgroundColor: AppThemes.surfaceCard,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 );
               },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: isUser ? AppThemes.surfaceCard : AppThemes.bgDark,
-                  boxShadow: [
-                    if (!isUser)
-                      BoxShadow(
-                        color: Colors.black.withAlpha(80),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    if (isUser)
-                      BoxShadow(
-                        color: Colors.black.withAlpha(50),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                  ],
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(20),
-                    topRight: const Radius.circular(20),
-                    bottomLeft: Radius.circular(isUser ? 20 : 4),
-                    bottomRight: Radius.circular(isUser ? 4 : 20),
-                  ),
-                  border: isUser
-                      ? Border.all(color: AppThemes.dividerColor, width: 0.5)
-                      : Border.all(color: AppThemes.accentCyan.withAlpha(30), width: 0.5),
-                ),
-                child: isUser
-                    ? Text(
-                        content,
-                        style: const TextStyle(
-                          color: AppThemes.textPrimary,
-                          fontSize: 15,
-                          height: 1.5,
+              child: isUser
+                  ? Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      )
-                    : MarkdownBody(
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(18),
+                          topRight: Radius.circular(18),
+                          bottomLeft: Radius.circular(18),
+                          bottomRight: Radius.circular(4),
+                        ),
+                        border: Border.all(color: const Color(0xFF1E293B), width: 0.8),
+                        boxShadow: [BoxShadow(color: Colors.black.withAlpha(60), blurRadius: 12, offset: const Offset(0, 4))],
+                      ),
+                      child: Text(
+                        content,
+                        style: const TextStyle(color: AppThemes.textPrimary, fontSize: 15, height: 1.5, fontFamily: 'Inter'),
+                      ),
+                    )
+                  : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF080C12),
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(4),
+                          topRight: Radius.circular(18),
+                          bottomLeft: Radius.circular(18),
+                          bottomRight: Radius.circular(18),
+                        ),
+                        border: Border.all(color: AppThemes.accentCyan.withAlpha(20), width: 0.5),
+                        boxShadow: [
+                          BoxShadow(color: AppThemes.accentCyan.withAlpha(8), blurRadius: 16, spreadRadius: 1),
+                          BoxShadow(color: Colors.black.withAlpha(60), blurRadius: 20, offset: const Offset(0, 6)),
+                        ],
+                      ),
+                      child: MarkdownBody(
                         data: content.isEmpty ? '▌' : content,
                         selectable: true,
-                        builders: {
-                          'code': CodeElementBuilder(context),
-                        },
+                        builders: {'code': CodeElementBuilder(context)},
                         styleSheet: MarkdownStyleSheet(
-                          p: const TextStyle(
-                            color: AppThemes.textPrimary,
-                            fontSize: 15,
-                            height: 1.5,
-                          ),
-                          code: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 13,
-                            color: Color(0xFF93C5FD),
-                          ),
-                          h1: const TextStyle(
-                            color: AppThemes.textPrimary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          h2: const TextStyle(
-                            color: AppThemes.textPrimary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          listBullet: const TextStyle(
-                            color: AppThemes.textPrimary,
-                          ),
+                          p: const TextStyle(color: AppThemes.textPrimary, fontSize: 15, height: 1.55, fontFamily: 'Inter'),
+                          code: const TextStyle(fontFamily: 'monospace', fontSize: 13, color: Color(0xFF7DD3FC), backgroundColor: Color(0xFF0F1929)),
+                          codeblockDecoration: BoxDecoration(color: const Color(0xFF060A14), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFF1E293B))),
+                          h1: const TextStyle(color: AppThemes.textPrimary, fontSize: 20, fontWeight: FontWeight.w800, fontFamily: 'Inter'),
+                          h2: const TextStyle(color: AppThemes.textPrimary, fontSize: 17, fontWeight: FontWeight.w700, fontFamily: 'Inter'),
+                          h3: const TextStyle(color: AppThemes.textSecondary, fontSize: 15, fontWeight: FontWeight.w600),
+                          listBullet: const TextStyle(color: AppThemes.accentCyan),
                           blockquoteDecoration: BoxDecoration(
-                            color: Colors.white.withAlpha(10),
-                            border: const Border(
-                              left: BorderSide(
-                                color: Colors.white54,
-                                width: 3,
-                              ),
-                            ),
+                            color: AppThemes.accentCyan.withAlpha(10),
+                            border: Border(left: BorderSide(color: AppThemes.accentCyan.withAlpha(120), width: 3)),
+                            borderRadius: BorderRadius.circular(4),
                           ),
+                          tableBorder: TableBorder.all(color: AppThemes.dividerColor, width: 0.5),
+                          tableHead: const TextStyle(color: AppThemes.accentCyan, fontWeight: FontWeight.w700, fontSize: 13),
+                          tableBody: const TextStyle(color: AppThemes.textPrimary, fontSize: 13),
                         ),
                       ),
-              ),
+                    ),
             ),
           ),
         ],
@@ -923,113 +1016,135 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   // ── Thinking indicator ────────────────────────────────────────────
   Widget _buildThinking() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
-      child: Row(
-        children: [
-          AnimatedBuilder(
-            animation: _dotController,
-            builder: (_, __) => Row(
-              children: List.generate(3, (i) {
-                final opacity = ((_dotController.value + i * 0.33) % 1.0).clamp(
-                  0.2,
-                  1.0,
-                );
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: Opacity(
-                    opacity: opacity,
-                    child: Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppThemes.accentCyan,
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              'Agent is working...',
-              style: TextStyle(color: AppThemes.textSecondary, fontSize: 12),
-            ),
-          ),
-          GestureDetector(
-            onTap: () => setState(() => _stopRequested = true),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF060D1A),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppThemes.accentCyan.withAlpha(30), width: 0.8),
+          boxShadow: [BoxShadow(color: AppThemes.accentCyan.withAlpha(12), blurRadius: 16, spreadRadius: 1)],
+        ),
+        child: Row(
+          children: [
+            // Glowing AI avatar
+            Container(
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
-                color: const Color(0xFFF87171).withAlpha(20),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: const Color(0xFFF87171).withAlpha(60),
-                ),
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(colors: [Color(0xFF1E40AF), AppThemes.accentCyan]),
+                boxShadow: [BoxShadow(color: AppThemes.accentCyan.withAlpha(80), blurRadius: 10)],
               ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
+              child: const Icon(Icons.auto_awesome_rounded, size: 13, color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.stop_rounded, size: 12, color: Color(0xFFF87171)),
-                  SizedBox(width: 4),
-                  Text(
-                    'Stop',
-                    style: TextStyle(
-                      color: Color(0xFFF87171),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                  const Text(
+                    'AGENT WORKING',
+                    style: TextStyle(color: AppThemes.accentCyan, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.5, fontFamily: 'Inter'),
+                  ),
+                  const SizedBox(height: 4),
+                  AnimatedBuilder(
+                    animation: _dotController,
+                    builder: (_, __) => Row(
+                      children: List.generate(3, (i) {
+                        final phase = (_dotController.value * 3 - i) % 3.0;
+                        final opacity = (phase > 0 && phase < 1 ? phase : phase > 2 ? 3 - phase : 0.0).clamp(0.2, 1.0);
+                        return Container(
+                          width: 5,
+                          height: 5,
+                          margin: const EdgeInsets.only(right: 4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppThemes.accentCyan.withOpacity(opacity),
+                            boxShadow: [BoxShadow(color: AppThemes.accentCyan.withOpacity(opacity * 0.4), blurRadius: 4)],
+                          ),
+                        );
+                      }),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+            // Stop button
+            GestureDetector(
+              onTap: () => setState(() => _stopRequested = true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppThemes.errorRed.withAlpha(15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppThemes.errorRed.withAlpha(60)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.stop_rounded, size: 11, color: AppThemes.errorRed),
+                    SizedBox(width: 4),
+                    Text('Stop', style: TextStyle(color: AppThemes.errorRed, fontSize: 11, fontWeight: FontWeight.w700, fontFamily: 'Inter')),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // ── Mode bar (Internal to Input Area now) ─────────────────────────────────────────────────────
+  // ── Mode bar ───────────────────────────────────────────────────────
   Widget _buildModeBar() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         children: _modes.map((mode) {
           final isSelected = _selectedMode == mode.label;
+          final chipColor = mode.label == 'Agent'
+              ? AppThemes.accentCyan
+              : mode.label == 'Websites'
+                  ? const Color(0xFF818CF8)
+                  : mode.label == 'Slides'
+                      ? const Color(0xFFFFD700)
+                      : const Color(0xFF4ADE80);
 
           return GestureDetector(
             onTap: () => setState(() => _selectedMode = mode.label),
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
               margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(10),
+                color: isSelected ? chipColor.withAlpha(20) : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: isSelected
-                    ? Colors.white.withAlpha(50)
-                    : Colors.white.withAlpha(20),
-                  width: 0.8,
+                  color: isSelected ? chipColor.withAlpha(120) : Colors.white.withAlpha(15),
+                  width: isSelected ? 1 : 0.6,
                 ),
+                boxShadow: isSelected
+                    ? [BoxShadow(color: chipColor.withAlpha(30), blurRadius: 8)]
+                    : [],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     mode.icon,
-                    size: 16,
-                    color: Colors.white.withAlpha(200),
+                    size: 14,
+                    color: isSelected ? chipColor : Colors.white.withAlpha(100),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
                   Text(
                     mode.label,
                     style: TextStyle(
-                      color: Colors.white.withAlpha(200),
-                      fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
+                      color: isSelected ? chipColor : Colors.white.withAlpha(100),
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                      fontFamily: 'Inter',
                     ),
                   ),
                 ],
@@ -1043,29 +1158,53 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   // ── Input bar ─────────────────────────────────────────────────────
   Widget _buildInput() {
+    final hasText = _textController.text.isNotEmpty;
     return SafeArea(
       top: false,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          _buildModeBar(), // Moved mode chips down to be attached to the input
-          const SizedBox(height: 12),
+          _buildModeBar(),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
             child: Container(
-              constraints: const BoxConstraints(maxHeight: 140),
+              constraints: const BoxConstraints(maxHeight: 160),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E1E24), // Flat dark rectangle
-                borderRadius: BorderRadius.circular(16), // Softer corners
+                color: const Color(0xFF080D16),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _isRunning
+                      ? AppThemes.accentCyan.withAlpha(60)
+                      : const Color(0xFF1E293B),
+                  width: _isRunning ? 1 : 0.8,
+                ),
+                boxShadow: [
+                  if (_isRunning)
+                    BoxShadow(color: AppThemes.accentCyan.withAlpha(20), blurRadius: 16, spreadRadius: 2),
+                  BoxShadow(color: Colors.black.withAlpha(60), blurRadius: 20, offset: const Offset(0, -4)),
+                ],
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                   Padding(
-                    padding: const EdgeInsets.only(left: 14, bottom: 12),
-                    child: Icon(
-                      Icons.sensors_rounded, 
-                      color: Colors.white.withAlpha(200),
-                      size: 24,
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16, bottom: 14),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(
+                        _selectedMode == 'Agent'
+                            ? Icons.auto_awesome_rounded
+                            : _selectedMode == 'Websites'
+                                ? Icons.language_rounded
+                                : _selectedMode == 'Slides'
+                                    ? Icons.cast_for_education_rounded
+                                    : Icons.travel_explore_rounded,
+                        color: _isRunning
+                            ? AppThemes.accentCyan
+                            : Colors.white.withAlpha(80),
+                        size: 20,
+                        key: ValueKey(_selectedMode),
+                      ),
                     ),
                   ),
                   Expanded(
@@ -1076,47 +1215,64 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       style: const TextStyle(
                         color: AppThemes.textPrimary,
                         fontSize: 15,
+                        fontFamily: 'Inter',
+                        height: 1.4,
                       ),
-                      decoration: const InputDecoration(
-                        hintText: 'Ask away. Pics work too.',
-                        hintStyle: TextStyle(
-                          color: AppThemes.textSecondary,
-                          fontSize: 15,
-                        ),
+                      decoration: InputDecoration(
+                        hintText: _selectedMode == 'Agent'
+                            ? 'Tell the agent what to build...'
+                            : _selectedMode == 'Websites'
+                                ? 'Describe the website you want...'
+                                : 'Ask anything...',
+                        hintStyle: TextStyle(color: Colors.white.withAlpha(35), fontSize: 14, fontFamily: 'Inter'),
                         border: InputBorder.none,
                         enabledBorder: InputBorder.none,
                         focusedBorder: InputBorder.none,
                         filled: false,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                       ),
-                      onSubmitted: (_) {
-                        if (!_isRunning) _send();
-                      },
+                      onSubmitted: (_) { if (!_isRunning) _send(); },
+                      onChanged: (_) => setState(() {}),
                     ),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(right: 12, bottom: 10),
                     child: GestureDetector(
                       onTap: () {
-                         if(_textController.text.isNotEmpty) {
-                             if (!_isRunning) _send();
-                         } else {
-                             // Handle secondary action (Adding image/Pill button from Kimi UI)
-                         }
+                        if (_isRunning) {
+                          setState(() => _stopRequested = true);
+                        } else if (hasText) {
+                          _send();
+                        }
                       },
-                      child: Container(
-                        width: 30,
-                        height: 30, 
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 36,
+                        height: 36,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 1.5),
+                          gradient: LinearGradient(
+                            colors: _isRunning
+                                ? [AppThemes.errorRed, const Color(0xFFF97316)]
+                                : hasText
+                                    ? [const Color(0xFF1E40AF), AppThemes.accentCyan]
+                                    : [const Color(0xFF1E293B), const Color(0xFF1E293B)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          boxShadow: (hasText || _isRunning)
+                              ? [
+                                  BoxShadow(
+                                    color: (_isRunning ? AppThemes.errorRed : AppThemes.accentCyan).withAlpha(80),
+                                    blurRadius: 12,
+                                    spreadRadius: 1,
+                                  ),
+                                ]
+                              : [],
                         ),
                         child: Icon(
-                          _isRunning ? Icons.stop : (_textController.text.isNotEmpty ? Icons.arrow_upward : Icons.add),
-                          color: Colors.white,
+                          _isRunning ? Icons.stop_rounded : Icons.arrow_upward_rounded,
+                          color: (hasText || _isRunning) ? Colors.white : Colors.white.withAlpha(40),
                           size: 18,
                         ),
                       ),
