@@ -1,19 +1,25 @@
 import '../../domain/interfaces/agent.dart';
 import '../../domain/models/agent_event.dart';
+import '../../domain/models/agent_handoff.dart';
 import '../agent_bus.dart';
 import '../../domain/interfaces/ai_provider.dart';
 import '../../domain/models/chat_message.dart';
+import '../../infrastructure/services/agent_memory_service.dart';
 import '../../infrastructure/services/dev_server_service.dart';
 
 class ServeAgent extends Agent {
   final AgentBus bus;
   final AIProvider aiProvider;
   final DevServerService serverService;
+  final AgentMemoryService memoryService;
+  final String? Function()? projectPathProvider;
 
   ServeAgent({
     required this.bus,
     required this.aiProvider,
     required this.serverService,
+    required this.memoryService,
+    this.projectPathProvider,
   }) {
     // Pipe server logs to the agent bus
     serverService.logStream.listen((log) {
@@ -43,7 +49,8 @@ class ServeAgent extends Agent {
 
   @override
   Future<void> handleEvent(AgentEvent event) async {
-    final payloadStr = event.payload.toString().toLowerCase();
+    final normalizedPayload = AgentHandoff.unwrapData(event.payload);
+    final payloadStr = normalizedPayload.toString().toLowerCase();
 
     // Simple intent parsing for the Serve agent wrapper
     if (payloadStr.contains('stop') || payloadStr.contains('kill')) {
@@ -53,7 +60,11 @@ class ServeAgent extends Agent {
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskCompleted,
-          payload: 'Server stopped successfully.',
+          payload: AgentHandoff(
+            status: 'completed',
+            reason: 'Server stopped successfully.',
+            evidence: ['ServeAgent stopped the dev server.'],
+          ).toJson(),
         ),
       );
       return;
@@ -69,10 +80,17 @@ class ServeAgent extends Agent {
     );
 
     try {
+      final memoryContext = await memoryService.buildExecutionContext(
+        task: normalizedPayload.toString(),
+        projectPath: projectPathProvider?.call(),
+        agentName: name,
+      );
       final prompt =
           '''
 You are a DevOps assistant. The user wants to start a development server.
-Request: ${event.payload}
+Request: $normalizedPayload
+
+$memoryContext
 
 Identify the best command to run (e.g., "npm run dev", "flutter run", "python -m http.server").
 Output strictly in this format: COMMAND|ARG1 ARG2 ARG3
@@ -102,7 +120,12 @@ Example: npm|run dev
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskCompleted,
-          payload: 'Server started successfully.',
+          payload: AgentHandoff(
+            status: 'completed',
+            reason: 'Server started successfully.',
+            commandsRun: ['${command.trim()} ${args.join(' ')}'.trim()],
+            evidence: ['ServeAgent started the requested server command.'],
+          ).toJson(),
         ),
       );
     } catch (e) {
@@ -111,7 +134,11 @@ Example: npm|run dev
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskFailed,
-          payload: 'Failed to start server: $e',
+          payload: AgentHandoff(
+            status: 'failed',
+            reason: 'Failed to start server: $e',
+            evidence: ['ServeAgent threw an exception while starting server.'],
+          ).toJson(),
         ),
       );
     }

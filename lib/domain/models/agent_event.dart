@@ -5,6 +5,8 @@ enum AgentEventType {
   taskFailed,
   message,
   error,
+  awaitingRequirements,
+  requirementsGathered,
   deployRequested,
   agentStep,
   planReady,

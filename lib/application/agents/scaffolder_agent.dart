@@ -2,11 +2,13 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../../domain/interfaces/agent.dart';
 import '../../domain/models/agent_event.dart';
+import '../../domain/models/agent_handoff.dart';
 import '../../domain/models/agent_step.dart';
 import '../agent_bus.dart';
 import '../../domain/interfaces/ai_provider.dart';
 import '../../domain/models/chat_message.dart';
 import '../../infrastructure/agent/agent_service.dart';
+import '../../infrastructure/services/agent_memory_service.dart';
 import '../../infrastructure/storage/workspace_manager.dart';
 
 class ScaffolderAgent extends Agent {
@@ -14,10 +16,14 @@ class ScaffolderAgent extends Agent {
   final AIProvider aiProvider;
 
   final WorkspaceManager workspaceManager;
+  final AgentMemoryService memoryService;
+  final String? Function()? projectPathProvider;
   ScaffolderAgent({
     required this.bus,
     required this.aiProvider,
     required this.workspaceManager,
+    required this.memoryService,
+    this.projectPathProvider,
   });
 
   @override
@@ -45,7 +51,8 @@ class ScaffolderAgent extends Agent {
     );
 
     try {
-      final payload = event.payload as Map<String, dynamic>;
+      final payload =
+          AgentHandoff.unwrapData(event.payload) as Map<String, dynamic>;
       final originalTask = payload['originalTask'];
       final plan = payload['plan'];
 
@@ -74,6 +81,8 @@ Original Task: $originalTask
         provider: aiProvider,
         mode: 'Agent',
         workspaceManager: workspaceManager,
+        projectPathProvider: projectPathProvider,
+        memoryService: memoryService,
       );
 
       String scaffoldLog = '';
@@ -118,11 +127,18 @@ Original Task: $originalTask
           sourceAgent: name,
           targetAgent: 'CoderAgent',
           type: AgentEventType.taskAssigned,
-          payload: {
-            'originalTask': originalTask,
-            'plan': plan,
-            'scaffoldLog': scaffoldLog,
-          },
+          payload: AgentHandoff(
+            status: 'completed',
+            reason: 'Scaffold is ready for implementation.',
+            artifacts: ['scaffold_log'],
+            evidence: ['ScaffolderAgent completed project structure setup.'],
+            nextRecommendedAgent: 'CoderAgent',
+            data: {
+              'originalTask': originalTask,
+              'plan': plan,
+              'scaffoldLog': scaffoldLog,
+            },
+          ).toJson(),
         ),
       );
 
@@ -131,7 +147,13 @@ Original Task: $originalTask
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskCompleted,
-          payload: 'Scaffolding phase complete. Handed off to CoderAgent.',
+          payload: AgentHandoff(
+            status: 'completed',
+            reason: 'Scaffolding phase complete. Handed off to CoderAgent.',
+            artifacts: ['scaffold_log'],
+            evidence: ['Project structure was generated successfully.'],
+            nextRecommendedAgent: 'CoderAgent',
+          ).toJson(),
         ),
       );
     } catch (e) {
@@ -140,7 +162,12 @@ Original Task: $originalTask
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskFailed,
-          payload: 'Failed to generate scaffold: $e',
+          payload: AgentHandoff(
+            status: 'failed',
+            reason: 'Failed to generate scaffold: $e',
+            evidence: ['ScaffolderAgent threw an exception.'],
+            nextRecommendedAgent: 'SupervisorAgent',
+          ).toJson(),
         ),
       );
     }
