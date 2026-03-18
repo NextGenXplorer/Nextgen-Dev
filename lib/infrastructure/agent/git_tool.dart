@@ -4,6 +4,11 @@ import '../services/git_service.dart';
 import 'agent_tool.dart';
 
 class GitTool implements AgentTool {
+  final String? activeProjectPath;
+  final String? Function()? projectPathProvider;
+
+  GitTool({this.activeProjectPath, this.projectPathProvider});
+
   @override
   String get name => 'git';
 
@@ -23,18 +28,26 @@ class GitTool implements AgentTool {
     final projectName = params['project_name'] as String?;
     final filePath = params['file_path'] as String?;
     final commitHash = params['commit_hash'] as String?;
+    final confirmed = params['confirm'] == true;
 
     if (command == null || command.isEmpty) {
       return 'Error: No git command provided.';
     }
 
-    if (projectName == null || projectName.isEmpty) {
-      return 'Error: Must provide project_name parameter to locate the workspace.';
-    }
-
     try {
-      final docDir = await getApplicationDocumentsDirectory();
-      final projectDir = '${docDir.path}/Projects/$projectName';
+      String projectDir = '';
+      if ((params['project_path']?.toString().trim().isNotEmpty ?? false)) {
+        projectDir = params['project_path'].toString().trim();
+      } else if ((projectPathProvider?.call()?.isNotEmpty ?? false)) {
+        projectDir = projectPathProvider!.call()!;
+      } else if (activeProjectPath != null && activeProjectPath!.isNotEmpty) {
+        projectDir = activeProjectPath!;
+      } else if (projectName != null && projectName.isNotEmpty) {
+        final docDir = await getApplicationDocumentsDirectory();
+        projectDir = '${docDir.path}/Projects/$projectName';
+      } else {
+        return 'Error: Must provide project_path/project_name or have an active project.';
+      }
 
       if (!await Directory(projectDir).exists()) {
         return 'Error: Project folder not found.';
@@ -49,8 +62,14 @@ class GitTool implements AgentTool {
           return await gitService.log();
         case 'restore':
           if (filePath == null) return 'Error: file_path required for restore.';
+          if (!confirmed) {
+            return 'Error: restore requires confirm=true and confirmation_reason.';
+          }
           return await gitService.restore(filePath);
         case 'reset':
+          if (!confirmed) {
+            return 'Error: reset requires confirm=true and confirmation_reason.';
+          }
           return await gitService.resetHard(commit: commitHash ?? 'HEAD');
         default:
           return 'Error: Unsupported git command. Use "status", "log", "restore", or "reset".';

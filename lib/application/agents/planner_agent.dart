@@ -1,10 +1,12 @@
 import '../../domain/interfaces/agent.dart';
 import '../../domain/models/agent_event.dart';
+import '../../domain/models/agent_handoff.dart';
 import '../../domain/models/agent_step.dart';
 import '../agent_bus.dart';
 import '../../domain/interfaces/ai_provider.dart';
 import '../../domain/models/chat_message.dart';
 import '../../infrastructure/agent/agent_service.dart';
+import '../../infrastructure/services/agent_memory_service.dart';
 import '../../infrastructure/storage/workspace_manager.dart';
 
 class PlannerAgent extends Agent {
@@ -12,10 +14,14 @@ class PlannerAgent extends Agent {
   final AIProvider aiProvider;
 
   final WorkspaceManager workspaceManager;
+  final AgentMemoryService memoryService;
+  final String? Function()? projectPathProvider;
   PlannerAgent({
     required this.bus,
     required this.aiProvider,
     required this.workspaceManager,
+    required this.memoryService,
+    this.projectPathProvider,
   });
 
   @override
@@ -37,11 +43,12 @@ class PlannerAgent extends Agent {
     String taskDescription;
     String? existingPlan;
 
-    if (payload is Map<String, dynamic>) {
-      taskDescription = payload['originalTask'] ?? '';
-      existingPlan = payload['plan'];
+    final normalizedPayload = AgentHandoff.unwrapData(payload);
+    if (normalizedPayload is Map<String, dynamic>) {
+      taskDescription = normalizedPayload['originalTask'] ?? '';
+      existingPlan = normalizedPayload['plan'];
     } else {
-      taskDescription = payload.toString();
+      taskDescription = normalizedPayload.toString();
     }
 
     bus.publish(
@@ -87,6 +94,8 @@ Do NOT start execution. Provide the plan and wait for the user's approval signal
         provider: aiProvider,
         mode: 'Agent',
         workspaceManager: workspaceManager,
+        projectPathProvider: projectPathProvider,
+        memoryService: memoryService,
       );
       String response = '';
 
@@ -130,7 +139,14 @@ Do NOT start execution. Provide the plan and wait for the user's approval signal
             sourceAgent: name,
             targetAgent: 'User',
             type: AgentEventType.planReady,
-            payload: {'originalTask': taskDescription, 'plan': response},
+            payload: AgentHandoff(
+              status: 'completed',
+              reason: 'Implementation plan is ready for approval.',
+              artifacts: ['implementation_plan'],
+              evidence: ['PlannerAgent produced a # Implementation Plan.'],
+              nextRecommendedAgent: 'User',
+              data: {'originalTask': taskDescription, 'plan': response},
+            ).toJson(),
           ),
         );
       } else {
@@ -140,7 +156,12 @@ Do NOT start execution. Provide the plan and wait for the user's approval signal
             sourceAgent: name,
             targetAgent: 'System',
             type: AgentEventType.taskCompleted,
-            payload: 'Planner finished conversation/questioning phase.',
+            payload: AgentHandoff(
+              status: 'completed',
+              reason: 'Planner finished conversation/questioning phase.',
+              evidence: ['PlannerAgent responded without producing a plan.'],
+              nextRecommendedAgent: 'User',
+            ).toJson(),
           ),
         );
       }
@@ -150,7 +171,12 @@ Do NOT start execution. Provide the plan and wait for the user's approval signal
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskFailed,
-          payload: 'Failed in planning phase: $e',
+          payload: AgentHandoff(
+            status: 'failed',
+            reason: 'Failed in planning phase: $e',
+            evidence: ['PlannerAgent threw an exception during planning.'],
+            nextRecommendedAgent: 'SupervisorAgent',
+          ).toJson(),
         ),
       );
     }

@@ -10,8 +10,9 @@ import 'agent_tool.dart';
 ///   {"name": "run_terminal_command", "command": "flutter pub get", "working_directory": "/abs/path"}
 class TerminalTool implements AgentTool {
   final String? activeProjectPath;
+  final String? Function()? projectPathProvider;
 
-  TerminalTool({this.activeProjectPath});
+  TerminalTool({this.activeProjectPath, this.projectPathProvider});
   @override
   String get name => 'run_terminal_command';
 
@@ -30,6 +31,7 @@ class TerminalTool implements AgentTool {
   Future<String> execute(Map<String, dynamic> params) async {
     final command = params['command'] as String?;
     final workingDirectory = params['working_directory'] as String?;
+    final environment = params['environment']?.toString() ?? 'workspace';
 
     if (command == null || command.trim().isEmpty) {
       return 'Error: No command provided.';
@@ -39,7 +41,12 @@ class TerminalTool implements AgentTool {
       // Resolve working directory
       String cwd = workingDirectory?.trim() ?? '';
       if (cwd.isEmpty) {
-        if (activeProjectPath != null && activeProjectPath!.isNotEmpty) {
+        if (environment == 'sandbox') {
+          final tempDir = await getTemporaryDirectory();
+          cwd = '${tempDir.path}/agent-sandbox';
+        } else if ((projectPathProvider?.call()?.isNotEmpty ?? false)) {
+          cwd = projectPathProvider!.call()!;
+        } else if (activeProjectPath != null && activeProjectPath!.isNotEmpty) {
           cwd = activeProjectPath!;
         } else {
           final docDir = await getApplicationDocumentsDirectory();
@@ -87,7 +94,7 @@ class TerminalTool implements AgentTool {
           ? '${s.substring(0, maxLen)}\n... [truncated ${s.length - maxLen} more chars]'
           : s;
 
-      final sb = StringBuffer('Exit Code: $exitCode\n');
+      final sb = StringBuffer('Environment: $environment\nExit Code: $exitCode\n');
       if (rawStdout.isNotEmpty) sb.write('STDOUT:\n${trunc(rawStdout)}\n');
       if (rawStderr.isNotEmpty) sb.write('STDERR:\n${trunc(rawStderr)}\n');
       if (rawStdout.isEmpty && rawStderr.isEmpty) sb.write('(no output)\n');

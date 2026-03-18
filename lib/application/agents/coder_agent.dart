@@ -1,10 +1,12 @@
 import '../../domain/interfaces/agent.dart';
 import '../../domain/models/agent_event.dart';
+import '../../domain/models/agent_handoff.dart';
 import '../../domain/models/agent_step.dart';
 import '../agent_bus.dart';
 import '../../domain/interfaces/ai_provider.dart';
 import '../../domain/models/chat_message.dart';
 import '../../infrastructure/agent/agent_service.dart';
+import '../../infrastructure/services/agent_memory_service.dart';
 import '../../infrastructure/storage/workspace_manager.dart';
 
 class CoderAgent extends Agent {
@@ -12,10 +14,14 @@ class CoderAgent extends Agent {
   final AIProvider aiProvider;
 
   final WorkspaceManager workspaceManager;
+  final AgentMemoryService memoryService;
+  final String? Function()? projectPathProvider;
   CoderAgent({
     required this.bus,
     required this.aiProvider,
     required this.workspaceManager,
+    required this.memoryService,
+    this.projectPathProvider,
   });
 
   @override
@@ -43,7 +49,8 @@ class CoderAgent extends Agent {
     );
 
     try {
-      final payload = event.payload as Map<String, dynamic>;
+      final payload =
+          AgentHandoff.unwrapData(event.payload) as Map<String, dynamic>;
       final originalTask = payload['originalTask'];
       final plan = payload['plan'];
       final scaffoldLog = payload['scaffoldLog'] ?? '';
@@ -102,6 +109,8 @@ Scaffolding Context: $scaffoldLog
         mode: 'Agent',
         maxToolCalls: 80, // Complex builds need many build/verify/fix loops
         workspaceManager: workspaceManager,
+        projectPathProvider: projectPathProvider,
+        memoryService: memoryService,
       );
 
       String codeLog = '';
@@ -146,7 +155,14 @@ Scaffolding Context: $scaffoldLog
           sourceAgent: name,
           targetAgent: 'TestingAgent',
           type: AgentEventType.taskAssigned,
-          payload: {'originalTask': originalTask, 'codeLog': codeLog},
+          payload: AgentHandoff(
+            status: 'completed',
+            reason: 'Implementation is ready for verification.',
+            artifacts: ['implementation_log'],
+            evidence: ['CoderAgent completed code generation.'],
+            nextRecommendedAgent: 'TestingAgent',
+            data: {'originalTask': originalTask, 'codeLog': codeLog},
+          ).toJson(),
         ),
       );
 
@@ -155,7 +171,14 @@ Scaffolding Context: $scaffoldLog
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskCompleted,
-          payload: 'Coding phase complete. Handed off to TestingAgent for verification.',
+          payload: AgentHandoff(
+            status: 'completed',
+            reason:
+                'Coding phase complete. Handed off to TestingAgent for verification.',
+            artifacts: ['implementation_log'],
+            evidence: ['Generated implementation log for testing.'],
+            nextRecommendedAgent: 'TestingAgent',
+          ).toJson(),
         ),
       );
     } catch (e) {
@@ -164,7 +187,12 @@ Scaffolding Context: $scaffoldLog
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskFailed,
-          payload: 'Failed to generate code: $e',
+          payload: AgentHandoff(
+            status: 'failed',
+            reason: 'Failed to generate code: $e',
+            evidence: ['CoderAgent threw an exception while generating code.'],
+            nextRecommendedAgent: 'SupervisorAgent',
+          ).toJson(),
         ),
       );
     }

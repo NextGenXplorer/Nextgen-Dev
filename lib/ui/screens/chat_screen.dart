@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../domain/models/chat_message.dart' as app_models;
 import '../../domain/models/conversation.dart';
+import '../../domain/models/agent_handoff.dart';
 import '../../domain/models/agent_step.dart';
 import '../../application/providers/ai_service_provider.dart';
 import '../../application/providers/agent_session_provider.dart';
@@ -111,7 +112,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       final session = ref.read(agentSessionProvider.notifier);
 
       if (event.type == AgentEventType.planReady) {
-        final payload = event.payload as Map<String, dynamic>;
+        final payload =
+            AgentHandoff.unwrapData(event.payload) as Map<String, dynamic>;
         session.setPlan(payload['plan'] ?? '', payload);
         // Requirements phase is done — clear the flag.
         session.setAwaitingRequirements(false);
@@ -131,7 +133,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       if (event.type == AgentEventType.awaitingRequirements) {
         final p = event.payload;
         String? originalTask;
-        if (p is Map<String, dynamic>) originalTask = p['originalTask'] as String?;
+        final normalized = AgentHandoff.unwrapData(p);
+        if (normalized is Map<String, dynamic>) {
+          originalTask = normalized['originalTask'] as String?;
+        }
         session.setAwaitingRequirements(true, originalTask: originalTask);
         session.setRunning(false);
         setState(() {});
@@ -807,20 +812,40 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
 
     if (payload != null) {
-      ref.read(agentBusProvider).publish(AgentEvent(
-        sourceAgent: 'User',
-        targetAgent: 'Orchestrator',
-        type: AgentEventType.planApproved,
-        payload: payload,
-      ));
-      // Reset tasks and mark as running in global session
       final session = ref.read(agentSessionProvider.notifier);
+      session.addMessage(
+        const app_models.ChatMessage(
+          role: app_models.MessageRole.model,
+          content: '✅ Plan approved. Kicking off implementation...',
+        ),
+      );
+
+      setState(() {
+        _items = [
+          ..._items,
+          _ChatItem.message(
+            const app_models.ChatMessage(
+              role: app_models.MessageRole.model,
+              content: '✅ Plan approved. Kicking off implementation...',
+            ),
+          ),
+        ];
+      });
+
+      ref.read(orchestratorProvider).approvePlan(payload);
+
+      // Reset tasks and mark as running in global session
       session.setRunning(true);
       // Clear old tasks from session for fresh build
       for (final t in _currentTasks) {
         session.upsertTask(AgentTask(title: t.title, status: TaskStatus.pending));
       }
       setState(() {});
+      _scrollToBottom();
+    } else {
+      _addSystemMsg(
+        'Unable to continue because the plan payload could not be reconstructed. Please regenerate the plan and try again.',
+      );
     }
   }
 

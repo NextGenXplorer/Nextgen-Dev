@@ -1,19 +1,25 @@
 import '../../domain/interfaces/agent.dart';
 import '../../domain/models/agent_event.dart';
+import '../../domain/models/agent_handoff.dart';
 import '../agent_bus.dart';
 import '../../domain/interfaces/ai_provider.dart';
 import '../../domain/models/chat_message.dart';
+import '../../infrastructure/services/agent_memory_service.dart';
 import '../../infrastructure/services/dev_server_service.dart';
 
 class PreviewAgent extends Agent {
   final AgentBus bus;
   final AIProvider aiProvider;
   final DevServerService serverService;
+  final AgentMemoryService memoryService;
+  final String? Function()? projectPathProvider;
 
   PreviewAgent({
     required this.bus,
     required this.aiProvider,
     required this.serverService,
+    required this.memoryService,
+    this.projectPathProvider,
   }) {
     // Pipe server logs to the agent bus
     serverService.logStream.listen((log) {
@@ -43,7 +49,8 @@ class PreviewAgent extends Agent {
 
   @override
   Future<void> handleEvent(AgentEvent event) async {
-    final payloadStr = event.payload.toString().toLowerCase();
+    final normalizedPayload = AgentHandoff.unwrapData(event.payload);
+    final payloadStr = normalizedPayload.toString().toLowerCase();
 
     if (payloadStr.contains('stop') || payloadStr.contains('kill')) {
       await serverService.stopServer();
@@ -52,7 +59,11 @@ class PreviewAgent extends Agent {
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskCompleted,
-          payload: 'Server stopped successfully.',
+          payload: AgentHandoff(
+            status: 'completed',
+            reason: 'Server stopped successfully.',
+            evidence: ['PreviewAgent stopped the dev server.'],
+          ).toJson(),
         ),
       );
       return;
@@ -68,9 +79,17 @@ class PreviewAgent extends Agent {
     );
 
     try {
+      final commandsRun = <String>[];
+      final memoryContext = await memoryService.buildExecutionContext(
+        task: normalizedPayload.toString(),
+        projectPath: projectPathProvider?.call(),
+        agentName: name,
+      );
       final prompt =
           '''
 You are a PREVIEW & DEVOPS AGENT. Your job is to install packages and start a dev server.
+
+$memoryContext
 
 1. INSTALL: Identify and run the package install command (e.g., `npm install`, `flutter pub get`).
 2. SERVE: Identify the start command (e.g., `npm run dev`, `flutter run`).
@@ -89,6 +108,7 @@ Example: npm install|npm run dev
       // Run Install
       if (installCmdLine.isNotEmpty) {
         final iParts = installCmdLine.split(' ');
+        commandsRun.add(installCmdLine);
         await serverService.startServer(iParts[0], iParts.sublist(1));
         // Wait a bit for install to finish - in a real app we'd wait for process completion
         await Future.delayed(const Duration(seconds: 5));
@@ -97,6 +117,7 @@ Example: npm install|npm run dev
       // Run Serve
       if (serveCmdLine.isNotEmpty) {
         final sParts = serveCmdLine.split(' ');
+        commandsRun.add(serveCmdLine);
         await serverService.startServer(sParts[0], sParts.sublist(1));
       }
 
@@ -105,7 +126,12 @@ Example: npm install|npm run dev
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskCompleted,
-          payload: 'Environment prepared and server started.',
+          payload: AgentHandoff(
+            status: 'completed',
+            reason: 'Environment prepared and server started.',
+            commandsRun: commandsRun,
+            evidence: ['PreviewAgent started the preview environment.'],
+          ).toJson(),
         ),
       );
 
@@ -123,7 +149,11 @@ Example: npm install|npm run dev
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskFailed,
-          payload: 'Failed in preview phase: $e',
+          payload: AgentHandoff(
+            status: 'failed',
+            reason: 'Failed in preview phase: $e',
+            evidence: ['PreviewAgent threw an exception.'],
+          ).toJson(),
         ),
       );
     }

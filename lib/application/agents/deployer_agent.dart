@@ -1,19 +1,25 @@
 import '../../domain/interfaces/agent.dart';
 import '../../domain/models/agent_event.dart';
+import '../../domain/models/agent_handoff.dart';
 import '../agent_bus.dart';
 import '../../domain/interfaces/ai_provider.dart';
 import '../../domain/models/chat_message.dart';
+import '../../infrastructure/services/agent_memory_service.dart';
 import '../../infrastructure/services/git_service.dart';
 
 class DeployerAgent extends Agent {
   final AgentBus bus;
   final AIProvider aiProvider;
   final GitService gitService; // Injected dependency for git ops
+  final AgentMemoryService memoryService;
+  final String? Function()? projectPathProvider;
 
   DeployerAgent({
     required this.bus,
     required this.aiProvider,
     required this.gitService,
+    required this.memoryService,
+    this.projectPathProvider,
   });
 
   @override
@@ -41,12 +47,19 @@ class DeployerAgent extends Agent {
     );
 
     try {
-      final requestDetails = event.payload.toString();
+      final requestDetails = AgentHandoff.summarize(event.payload);
+      final memoryContext = await memoryService.buildExecutionContext(
+        task: requestDetails,
+        projectPath: projectPathProvider?.call(),
+        agentName: name,
+      );
 
       final prompt =
           '''
 You are a DevOps Expert. Analyze this deployment request.
 Request: $requestDetails
+
+$memoryContext
 
 Determine the appropriate git commit message for this deployment.
 Return only the commit message.
@@ -118,7 +131,15 @@ Return only the commit message.
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskCompleted,
-          payload: 'Deployment phase complete.',
+          payload: AgentHandoff(
+            status: 'completed',
+            reason: 'Deployment phase complete.',
+            artifacts: ['deployment_log'],
+            commandsRun: ['git add .', 'git commit'],
+            evidence: [
+              'Committed with message "$commitMessage" and prepared Vercel deployment.'
+            ],
+          ).toJson(),
         ),
       );
     } catch (e) {
@@ -127,7 +148,11 @@ Return only the commit message.
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskFailed,
-          payload: 'Deployment failed: $e',
+          payload: AgentHandoff(
+            status: 'failed',
+            reason: 'Deployment failed: $e',
+            evidence: ['DeployerAgent threw an exception.'],
+          ).toJson(),
         ),
       );
     }

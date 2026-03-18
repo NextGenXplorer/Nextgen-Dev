@@ -1,11 +1,13 @@
 import 'dart:async';
 import '../../domain/interfaces/agent.dart';
 import '../../domain/models/agent_event.dart';
+import '../../domain/models/agent_handoff.dart';
 import '../../domain/models/agent_step.dart';
 import '../agent_bus.dart';
 import '../../domain/interfaces/ai_provider.dart';
 import '../../domain/models/chat_message.dart';
 import '../../infrastructure/agent/agent_service.dart';
+import '../../infrastructure/services/agent_memory_service.dart';
 import '../../infrastructure/storage/workspace_manager.dart';
 
 class DebuggerAgent extends Agent {
@@ -13,10 +15,14 @@ class DebuggerAgent extends Agent {
   final AIProvider aiProvider;
 
   final WorkspaceManager workspaceManager;
+  final AgentMemoryService memoryService;
+  final String? Function()? projectPathProvider;
   DebuggerAgent({
     required this.bus,
     required this.aiProvider,
     required this.workspaceManager,
+    required this.memoryService,
+    this.projectPathProvider,
   });
 
   @override
@@ -42,7 +48,11 @@ class DebuggerAgent extends Agent {
     );
 
     try {
-      final errorMessage = event.payload.toString();
+      final normalizedPayload = AgentHandoff.unwrapData(event.payload);
+      final errorMessage = normalizedPayload is Map<String, dynamic>
+          ? normalizedPayload['failure']?.toString() ??
+              AgentHandoff.summarize(event.payload)
+          : AgentHandoff.summarize(event.payload);
 
       final prompt =
           '''
@@ -88,6 +98,8 @@ Zero context switching from the user. Fix it. Prove it works. Report done.
         mode: 'Agent',
         maxToolCalls: 40,
         workspaceManager: workspaceManager,
+        projectPathProvider: projectPathProvider,
+        memoryService: memoryService,
       );
 
       final completer = Completer<void>();
@@ -124,7 +136,13 @@ Zero context switching from the user. Fix it. Prove it works. Report done.
                   sourceAgent: name,
                   targetAgent: 'System',
                   type: AgentEventType.taskCompleted,
-                  payload: 'Debugging and autofix complete.',
+                  payload: AgentHandoff(
+                    status: 'completed',
+                    reason: 'Debugging and autofix complete.',
+                    artifacts: ['debugging_log'],
+                    evidence: ['DebuggerAgent completed its recovery loop.'],
+                    nextRecommendedAgent: 'TestingAgent',
+                  ).toJson(),
                 ),
               );
               // Route back to the ReviewerAgent to verify the fixes and potentially trigger the preview
@@ -133,11 +151,18 @@ Zero context switching from the user. Fix it. Prove it works. Report done.
                   sourceAgent: name,
                   targetAgent: 'TestingAgent',
                   type: AgentEventType.taskAssigned,
-                  payload: {
-                    'originalTask': 'Verify fixes applied by DebuggerAgent',
-                    'codeLog':
-                        'DebuggerAgent analyzed the crash and applied fixes via edit_file. Please review to see if PASSED.',
-                  },
+                  payload: AgentHandoff(
+                    status: 'completed',
+                    reason: 'DebuggerAgent applied fixes that need verification.',
+                    artifacts: ['debugging_log'],
+                    evidence: ['DebuggerAgent routed its fixes back to testing.'],
+                    nextRecommendedAgent: 'TestingAgent',
+                    data: {
+                      'originalTask': 'Verify fixes applied by DebuggerAgent',
+                      'codeLog':
+                          'DebuggerAgent analyzed the crash and applied fixes via edit_file. Please review to see if PASSED.',
+                    },
+                  ).toJson(),
                 ),
               );
               completer.complete();
@@ -148,7 +173,12 @@ Zero context switching from the user. Fix it. Prove it works. Report done.
                   sourceAgent: name,
                   targetAgent: 'System',
                   type: AgentEventType.taskFailed,
-                  payload: 'Debugger failed during agent streaming: $e',
+                  payload: AgentHandoff(
+                    status: 'failed',
+                    reason: 'Debugger failed during agent streaming: $e',
+                    evidence: ['DebuggerAgent stream emitted an error.'],
+                    nextRecommendedAgent: 'SupervisorAgent',
+                  ).toJson(),
                 ),
               );
               completer.complete();
@@ -162,7 +192,12 @@ Zero context switching from the user. Fix it. Prove it works. Report done.
           sourceAgent: name,
           targetAgent: 'System',
           type: AgentEventType.taskFailed,
-          payload: 'Debugger failed to analyze error: $e',
+          payload: AgentHandoff(
+            status: 'failed',
+            reason: 'Debugger failed to analyze error: $e',
+            evidence: ['DebuggerAgent threw before starting recovery.'],
+            nextRecommendedAgent: 'SupervisorAgent',
+          ).toJson(),
         ),
       );
     }
